@@ -378,25 +378,29 @@ func (t *Transport) isSender(k [32]byte) bool {
 // parallel, and records which accept.
 func (t *Transport) publishItem(ctx context.Context, it *Item) {
 	it.Attempts++
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+	var targets []string
 	for _, u := range it.Relays {
-		if it.Accepted[u] {
-			continue
+		if !it.Accepted[u] {
+			targets = append(targets, u)
 		}
+	}
+	accepted := make([]bool, len(targets))
+	var wg sync.WaitGroup
+	for i, u := range targets {
 		wg.Add(1)
-		go func(u string) {
+		go func(i int, u string) {
 			defer wg.Done()
 			ok, reached := t.publishOne(ctx, u, it.Event)
 			t.setUp(u, reached)
-			if ok {
-				mu.Lock()
-				it.Accepted[u] = true
-				mu.Unlock()
-			}
-		}(u)
+			accepted[i] = ok
+		}(i, u)
 	}
 	wg.Wait()
+	for i, u := range targets {
+		if accepted[i] {
+			it.Accepted[u] = true
+		}
+	}
 	t.report()
 }
 
