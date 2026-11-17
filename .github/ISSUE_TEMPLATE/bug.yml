@@ -1,0 +1,54 @@
+name: Bug report
+description: Something does not work as documented
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use test data only. Never include real names, phone numbers, Nostr keys or locations.
+        If this bug could silence or fake an alarm, or expose a guardian, report it privately instead (Security tab).
+  - type: input
+    id: version
+    attributes:
+      label: Kengele version
+      description: Output of `kengele-watcher` or the app's About screen, or the commit you built from.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Watcher (Go)
+        - Android app
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: What did you do, step by step?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Remove keys, PINs and any personal data first.
+      render: text
+    validations:
+      required: false
