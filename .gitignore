@@ -1,0 +1,4 @@
+/kengele-watcher
+/bin/
+*.apk
+.env
