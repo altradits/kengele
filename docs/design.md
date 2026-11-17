@@ -45,6 +45,7 @@ Kengele shortens the time between a disappearance and public pressure. It does n
 | Part | Choice |
 |---|---|
 | Transport | Nostr: NIP-17 private messages, NIP-44 encryption, NIP-59 gift wrap, several public relays |
+| Message format | Fixed-size signed, encrypted events that fit two SMS: see [message-format.md](message-format.md) |
 | Activist app | Android first (reliable background timers), distributed by F-Droid and signed APK |
 | Guardian side | Guardian app, plus a small Go watcher (`cmd/kengele-watcher`) that an organisation can run as a backup |
 | Timestamps | OpenTimestamps, anchored to Bitcoin |
