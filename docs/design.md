@@ -67,7 +67,7 @@ Kengele shortens the time between a disappearance and public pressure. It does n
 
 Lives may depend on this, so:
 
-1. Publish the threat model **first** and ask for review by digital-security groups: Access Now's Digital Security Helpline, Front Line Defenders, Defenders Coalition Kenya and CIPESA.
+1. Publish the [threat model](threat-model.md) **first** and ask for review by digital-security groups: Access Now's Digital Security Helpline, Front Line Defenders, Defenders Coalition Kenya and CIPESA.
 2. Label everything "Not for real use until reviewed" until they sign off.
 3. Test with **simulated disappearance drills** run by volunteer pairs over the internet. Measure time to alert and false-alarm rate.
 4. Keep a responsible-disclosure policy ([SECURITY.md](../SECURITY.md)) and a public log of every security fix.
