@@ -7,11 +7,12 @@ import android.widget.ScrollView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.altradits.kengele.checkin.CheckInManager
+import com.altradits.kengele.guardian.InMemoryGuardianStore
 import com.altradits.kengele.message.KengeleMessage
-import com.altradits.kengele.pin.PinResult
-import com.altradits.kengele.sms.DisabledSmsDirectory
-import com.altradits.kengele.sms.SmsNotice
+import com.altradits.kengele.sms.SmsBatchKind
+import com.altradits.kengele.sms.SmsNoticeStrings
 import com.altradits.kengele.sms.SmsSender
+import com.altradits.kengele.sms.StoreSmsDirectory
 import com.altradits.kengele.sms.SystemSmsGateway
 import com.altradits.kengele.sms.SystemSmsScheduler
 
@@ -46,20 +47,15 @@ class PinEntryActivity : AppCompatActivity() {
             }
             // Same call for both PINs; the result screen cannot tell them apart.
             val pinResult = AppState.pins.verify(pin.text.toString())
-            val batchKind = when (pinResult) {
-                PinResult.REAL -> KengeleMessage.Kind.CHECK_IN
-                PinResult.DURESS -> KengeleMessage.Kind.DURESS_CHECK_IN
-                // Unused: CheckInManager sends nothing for a wrong PIN.
-                PinResult.WRONG -> KengeleMessage.Kind.CHECK_IN
-            }
-            // Encrypted SMS fallback (docs/sms-transport.md). Only this
-            // check-in path is wired; panic (MainActivity) stays stubbed
-            // until its wiring lands.
+            val batchKind = SmsBatchKind.forCheckIn(pinResult)
+            // Encrypted SMS fallback (docs/sms-transport.md): the same
+            // store-backed directory and batch-kind gating as the panic
+            // path (MainActivity). Off by default until the activist opts
+            // each guardian in.
+            val guardianKeys = guardians.map { InMemoryGuardianStore.bytesToHex(it) }
             val manager = CheckInManager(
                 SmsSender(
-                    // TODO: per-guardian number/profile store + opt-in UI;
-                    // SMS stays off for everyone until then (spec default).
-                    directory = DisabledSmsDirectory,
+                    directory = StoreSmsDirectory(AppState.sms) { guardianKeys },
                     gateway = SystemSmsGateway(applicationContext),
                     scheduler = SystemSmsScheduler(),
                     kindOfBatch = { batchKind },
@@ -67,7 +63,7 @@ class PinEntryActivity : AppCompatActivity() {
                     // Nostr-only until it lands.
                     shutdownMode = { false },
                     onNotice = { notice ->
-                        Toast.makeText(this, smsNoticeText(notice), Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
                     },
                 ),
             )
@@ -88,11 +84,5 @@ class PinEntryActivity : AppCompatActivity() {
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
-    }
-
-    private fun smsNoticeText(notice: SmsNotice): String = when (notice) {
-        SmsNotice.SEND_FAILED_QUEUED -> getString(R.string.sms_failed_queued)
-        SmsNotice.NO_PERMISSION -> getString(R.string.sms_no_permission)
-        SmsNotice.INVALID_TEXT_DROPPED -> getString(R.string.sms_invalid_dropped)
     }
 }

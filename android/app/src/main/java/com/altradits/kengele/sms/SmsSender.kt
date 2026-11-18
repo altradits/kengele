@@ -15,6 +15,15 @@ enum class SmsNotice {
     INVALID_TEXT_DROPPED,
 }
 
+/** Maps [SmsNotice] values to EN/SW string resources. Shared by both send paths. */
+object SmsNoticeStrings {
+    fun res(notice: SmsNotice): Int = when (notice) {
+        SmsNotice.SEND_FAILED_QUEUED -> com.altradits.kengele.R.string.sms_failed_queued
+        SmsNotice.NO_PERMISSION -> com.altradits.kengele.R.string.sms_no_permission
+        SmsNotice.INVALID_TEXT_DROPPED -> com.altradits.kengele.R.string.sms_invalid_dropped
+    }
+}
+
 /**
  * Encrypted SMS fallback sender (docs/sms-transport.md, section 2).
  *

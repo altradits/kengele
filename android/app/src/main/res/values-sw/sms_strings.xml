@@ -8,4 +8,23 @@
     <string name="sms_failed_queued">SMS imeshindwa. Itajaribu tena yenyewe.</string>
     <string name="sms_no_permission">Ruhusa ya SMS imezimwa, kwa hivyo SMS mbadala haiwezi kutuma. Iwasha kwenye Mipangilio.</string>
     <string name="sms_invalid_dropped">Hitilafu ya ujumbe. SMS haijatumwa.</string>
+    <string name="sms_menu">SMS mbadala</string>
+    <string name="sms_title">SMS mbadala</string>
+    <string name="sms_guardian_n">Mlinzi %1$d</string>
+    <string name="sms_no_guardians">Ongeza walinzi kwanza.</string>
+    <string name="sms_edit_title">SMS kwa mlinzi huyu</string>
+    <string name="sms_number_hint">Namba ya simu yenye msimbo wa nchi</string>
+    <string name="sms_invalid_number">Namba hiyo si sahihi. Tumia tarakimu zenye msimbo wa nchi.</string>
+    <string name="sms_saved">Mpangilio wa SMS umehifadhiwa.</string>
+    <string name="sms_cancel">Ghairi</string>
+    <string name="sms_enable_title">Kuwasha SMS mbadala?</string>
+    <string name="sms_enable_allow">Washa</string>
+    <string name="sms_keep_off">Acha imezimwa</string>
+    <string name="sms_perm_title">Ruhusa ya SMS</string>
+    <string name="sms_perm_rationale">Kengele hutuma tahadhari zilizofungwa kwa SMS intaneti inapokatika, na husoma majibu yaliyofungwa yanayoingia. Kila SMS inaionyesha kampuni ya simu namba yako, namba ya mlinzi na muda.</string>
+    <string name="sms_perm_allow">Endelea</string>
+    <string name="sms_perm_denied">Ruhusa ya SMS imekataliwa. SMS mbadala imezimwa.</string>
+    <string name="sms_perm_button">Ruhusu SMS</string>
+    <string name="sms_perm_granted">Ruhusa ya SMS imewashwa.</string>
+    <string name="sms_perm_missing">Ruhusa ya SMS imezimwa.</string>
 </resources>

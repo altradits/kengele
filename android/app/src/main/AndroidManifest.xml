@@ -49,6 +49,7 @@
         <activity android:name=".PinEntryActivity" android:exported="false" />
         <activity android:name=".CheckInResultActivity" android:exported="false" />
         <activity android:name=".mesh.MeshStatusActivity" android:exported="false" />
+        <activity android:name=".sms.SmsSettingsActivity" android:exported="false" />
         <service
             android:name=".mesh.MeshService"
             android:foregroundServiceType="connectedDevice"

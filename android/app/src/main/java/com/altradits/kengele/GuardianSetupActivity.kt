@@ -63,6 +63,8 @@ class GuardianSetupActivity : AppCompatActivity() {
             remove.text = getString(R.string.remove)
             remove.setOnClickListener {
                 AppState.guardians.remove(key)
+                // The number must not linger for a guardian who is gone.
+                AppState.sms.remove(key)
                 refresh()
             }
             row.addView(remove)

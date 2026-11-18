@@ -6,9 +6,11 @@ import android.util.Base64
 import com.altradits.kengele.guardian.GuardianStore
 import com.altradits.kengele.message.Secp256k1
 import com.altradits.kengele.pin.PinStore
+import com.altradits.kengele.sms.SmsStore
 import com.altradits.kengele.store.EncryptedGuardianStore
 import com.altradits.kengele.store.EncryptedPinStore
 import com.altradits.kengele.store.EncryptedPrefs
+import com.altradits.kengele.store.EncryptedSmsStore
 import com.altradits.kengele.watch.WatchWindow
 import java.security.SecureRandom
 
@@ -23,12 +25,15 @@ object AppState {
         private set
     lateinit var pins: PinStore
         private set
+    lateinit var sms: SmsStore
+        private set
 
     fun init(context: Context) {
         if (this::prefs.isInitialized) return
         prefs = EncryptedPrefs.open(context.applicationContext)
         guardians = EncryptedGuardianStore(prefs)
         pins = EncryptedPinStore(prefs)
+        sms = EncryptedSmsStore(prefs)
     }
 
     /** The activist's signing key, generated once and kept encrypted. */

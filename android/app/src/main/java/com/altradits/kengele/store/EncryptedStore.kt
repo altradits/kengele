@@ -10,6 +10,10 @@ import com.altradits.kengele.guardian.InMemoryGuardianStore
 import com.altradits.kengele.pin.InMemoryPinStore
 import com.altradits.kengele.pin.PinResult
 import com.altradits.kengele.pin.PinStore
+import com.altradits.kengele.sms.SmsEntry
+import com.altradits.kengele.sms.SmsNumbers
+import com.altradits.kengele.sms.SmsProfile
+import com.altradits.kengele.sms.SmsStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -67,6 +71,77 @@ class EncryptedGuardianStore(private val prefs: SharedPreferences) : GuardianSto
 
     companion object {
         private const val KEYS = "guardian_keys"
+    }
+}
+
+/**
+ * [SmsStore] backed by encrypted preferences: one `key:PROFILE:number`
+ * record per opted-in guardian. No record means SMS off, so opted-out
+ * guardians leave nothing at rest.
+ */
+class EncryptedSmsStore(private val prefs: SharedPreferences) : SmsStore {
+    override fun get(hexKey: String): SmsEntry? {
+        val key = SmsNumbers.normKey(hexKey) ?: return null
+        for (record in stored()) {
+            val parsed = parseRecord(record) ?: continue
+            if (parsed.first == key) return parsed.second
+        }
+        return null
+    }
+
+    override fun set(hexKey: String, number: String, profile: SmsProfile) {
+        val key = SmsNumbers.normKey(hexKey)
+        require(key != null) { "guardian key must be 64 hex characters" }
+        val records = stored().filterTo(mutableSetOf()) { parseRecord(it)?.first != key }
+        if (profile != SmsProfile.OFF) {
+            records.add(encodeRecord(key, SmsEntry(SmsNumbers.checkNumber(number), profile)))
+        }
+        prefs.edit().putStringSet(SMS, records).apply()
+    }
+
+    override fun remove(hexKey: String): Boolean {
+        val key = SmsNumbers.normKey(hexKey) ?: return false
+        val records = stored()
+        val kept = records.filterTo(mutableSetOf()) { parseRecord(it)?.first != key }
+        if (kept.size == records.size) return false
+        prefs.edit().putStringSet(SMS, kept).apply()
+        return true
+    }
+
+    override fun clear() {
+        prefs.edit().remove(SMS).apply()
+    }
+
+    private fun stored(): Set<String> = prefs.getStringSet(SMS, emptySet()) ?: emptySet()
+
+    companion object {
+        private const val SMS = "sms_optins"
+
+        /**
+         * Encodes one record. Pure so unit tests pin the format without
+         * Android: `key:PROFILE:number`, where the number is already
+         * normalised (no colons, no whitespace).
+         */
+        fun encodeRecord(hexKey: String, entry: SmsEntry): String =
+            "$hexKey:${entry.profile.name}:${entry.number}"
+
+        /**
+         * Parses one record, or null for anything malformed (wrong parts,
+         * bad key, unknown profile, bad number). Corrupt records are
+         * skipped, never crash the read path.
+         */
+        fun parseRecord(record: String): Pair<String, SmsEntry>? {
+            val parts = record.split(":")
+            if (parts.size != 3) return null
+            val key = SmsNumbers.normKey(parts[0]) ?: return null
+            val profile = try {
+                SmsProfile.valueOf(parts[1])
+            } catch (e: IllegalArgumentException) {
+                return null
+            }
+            if (profile == SmsProfile.OFF || !SmsNumbers.isValidNumber(parts[2])) return null
+            return key to SmsEntry(parts[2], profile)
+        }
     }
 }
 
