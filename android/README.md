@@ -57,6 +57,10 @@ constant table.
 - Every message is the same 228 bytes / 304 characters whatever the kind, so
   carriers cannot tell kinds apart (§4.1, §4.2); tests pin the lengths.
 - PINs and keys are hashed/encrypted at rest and never logged (§2).
+- Reinstall means fresh keys: a restored activist key without its sequence
+  counter is dropped and replaced, so the activist re-enrolls with the
+  guardians and the old watch fails safe to alarm; every fresh key resets
+  the counter.
 
 ## Still stubbed
 

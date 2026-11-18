@@ -32,8 +32,34 @@ object AppState {
     }
 
     /** The activist's signing key, generated once and kept encrypted. */
-    fun activistPriv(): ByteArray {
-        prefs.getString(PRIV, null)?.let { return unb64(it) }
+    fun activistPriv(): ByteArray = activistPriv(PrefsKeys(prefs), ::newPrivKey)
+
+    /**
+     * Reinstall rule, Android-free so unit tests cover it: a stored key
+     * without its seq counter (key restored without prefs) is dropped and
+     * replaced with a fresh key, so the activist re-enrolls and the old
+     * watch fails safe to alarm; every fresh key resets the seq counter so
+     * guardians never mistake a restarted seq for replays (threat model
+     * replay row).
+     */
+    internal fun activistPriv(store: KeySeqStore, generate: () -> ByteArray): ByteArray {
+        store.loadPriv()?.let { if (store.hasSeq()) return it else store.clearPriv() }
+        val fresh = generate()
+        store.storePriv(fresh)
+        store.resetSeq()
+        return fresh
+    }
+
+    /** Minimal key/counter store behind the reinstall rule. */
+    internal interface KeySeqStore {
+        fun loadPriv(): ByteArray?
+        fun storePriv(fresh: ByteArray)
+        fun clearPriv()
+        fun hasSeq(): Boolean
+        fun resetSeq()
+    }
+
+    private fun newPrivKey(): ByteArray {
         val random = SecureRandom()
         while (true) {
             val cand = ByteArray(32).also(random::nextBytes)
@@ -42,8 +68,26 @@ object AppState {
             } catch (e: Exception) {
                 continue
             }
-            prefs.edit().putString(PRIV, b64(cand)).apply()
             return cand
+        }
+    }
+
+    private class PrefsKeys(private val prefs: SharedPreferences) : KeySeqStore {
+        override fun loadPriv(): ByteArray? =
+            prefs.getString(PRIV, null)?.let { AppState.unb64(it) }
+
+        override fun storePriv(fresh: ByteArray) {
+            prefs.edit().putString(PRIV, AppState.b64(fresh)).apply()
+        }
+
+        override fun clearPriv() {
+            prefs.edit().remove(PRIV).apply()
+        }
+
+        override fun hasSeq(): Boolean = prefs.contains(SEQ)
+
+        override fun resetSeq() {
+            prefs.edit().remove(SEQ).apply()
         }
     }
 
