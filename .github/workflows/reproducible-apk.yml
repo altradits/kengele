@@ -1,0 +1,103 @@
+name: reproducible-apk
+
+# Demonstrates the reproducible-build check from docs/distribution.md: build
+# the release APK twice from a clean tree and fail when the two hashes differ.
+# Tolerates android/ not existing yet (it lands in #15): without it the job
+# passes with a skip notice instead of failing. Never signs with the release
+# key; CI builds the unsigned release APK with the debug key only.
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - ".github/workflows/reproducible-apk.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/reproducible-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproducible:
+    name: two builds, same hash
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: UTC
+      LC_ALL: C.UTF-8
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Look for Android app
+        id: android
+        run: |
+          if [ -d android ] && [ -f android/gradlew ] && [ -f android/settings.gradle.kts -o -f android/settings.gradle ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No android/ app yet (lands in #15). Skipping reproducible-build check."
+          fi
+
+      - name: Select pinned JDK from runner toolcache
+        if: steps.android.outputs.present == 'true'
+        run: |
+          # Pinned toolchain: update the version here and in docs/distribution.md together.
+          for candidate in /usr/lib/jvm/temurin-17-* /usr/lib/jvm/temurin-17; do
+            if [ -x "$candidate/bin/javac" ]; then
+              echo "JAVA_HOME=$candidate" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          if [ -z "${JAVA_HOME:-}" ]; then
+            echo "::error::Pinned JDK (Temurin 17) not found in the runner toolcache. Refusing to build with an unpinned toolchain."
+            exit 1
+          fi
+          "$JAVA_HOME/bin/java" -version
+
+      - name: Verify Gradle wrapper checksum
+        if: steps.android.outputs.present == 'true'
+        run: |
+          props=android/gradle/wrapper/gradle-wrapper.properties
+          pinned="$(grep '^distributionSha256Sum=' "$props" | cut -d= -f2)"
+          if [ -z "$pinned" ]; then
+            echo "::error::No distributionSha256Sum pinned in $props. Refusing to run an unverified wrapper."
+            exit 1
+          fi
+          url="$(grep '^distributionUrl=' "$props" | cut -d= -f2-)"
+          echo "Pinned wrapper distribution: $url"
+          echo "Pinned SHA-256: $pinned"
+          sh android/gradlew --version --no-daemon
+          actual="$(find "$HOME/.gradle/wrapper/dists" -name 'gradle-*.zip' -exec sha256sum {} + | head -n 1 | cut -d' ' -f1)"
+          if [ "$actual" != "$pinned" ]; then
+            echo "::error::Gradle wrapper checksum mismatch. Expected $pinned, got ${actual:-nothing}."
+            exit 1
+          fi
+
+      - name: Build twice and compare hashes
+        if: steps.android.outputs.present == 'true'
+        run: |
+          export SOURCE_DATE_EPOCH
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+          mkdir -p /tmp/repro
+          for n in 1 2; do
+            rm -rf "/tmp/repro/build$n"
+            git worktree list >/dev/null 2>&1 || true
+            cp -a "$GITHUB_WORKSPACE" "/tmp/repro/build$n"
+            (cd "/tmp/repro/build$n" && sh android/gradlew :app:assembleRelease --no-daemon --rerun-tasks)
+            ls "/tmp/repro/build$n"/android/app/build/outputs/apk/release/*.apk
+            (cd "/tmp/repro/build$n" && sha256sum android/app/build/outputs/apk/release/*.apk) > "/tmp/repro/hashes$n.txt"
+            echo "--- build $n hashes ---"
+            cat "/tmp/repro/hashes$n.txt"
+          done
+          # Compare hash values only; paths differ between the two work dirs.
+          if [ "$(cut -d' ' -f1 /tmp/repro/hashes1.txt)" != "$(cut -d' ' -f1 /tmp/repro/hashes2.txt)" ]; then
+            echo "::error::Reproducible-build check FAILED: the two builds produced different APK hashes."
+            diff /tmp/repro/hashes1.txt /tmp/repro/hashes2.txt || true
+            exit 1
+          fi
+          echo "Reproducible-build check passed: both builds produced identical APK hashes."
