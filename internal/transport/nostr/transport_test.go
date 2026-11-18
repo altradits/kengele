@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/altradits/kengele/internal/message"
+	"github.com/altradits/kengele/internal/transport"
 	"github.com/btcsuite/btcd/btcec/v2"
 	gn "github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip44"
@@ -282,6 +283,9 @@ func TestActivistToGuardiansOverRelays(t *testing.T) {
 	}
 	for i, ch := range chans {
 		d := receiveOne(t, ch, 3*time.Second)
+		if d.Via != transport.Nostr {
+			t.Fatalf("guardian %d: delivery tagged %v, want nostr", i, d.Via)
+		}
 		if d.Event.Kind != message.KindPanic || d.Event.Seq != 3 || d.Event.Signer != apub {
 			t.Fatalf("guardian %d got %+v", i, d.Event)
 		}
