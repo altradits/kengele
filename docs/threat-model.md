@@ -77,7 +77,7 @@ Each tree lists the ways to reach the goal, then the mitigation and the roadmap 
 | Forge a panic or missed event | A8 | Every event is signed by the activist's key; guardians reject unsigned or wrongly signed events | #6 |
 | Replay an old panic event | A5, A8 | Events carry a creation time and a watch-window ID; guardians reject events outside the active window or already seen | #6 |
 | One compromised guardian publishes the alert alone | A4 | Level 2 requires 2 confirmations signed by distinct guardian keys | #11 |
-| Impersonator posts a fake alert from a new key | A8 | Public alerts are signed by the activist's key and co-signed by guardians; the activist's public key is published in advance on their own profile so journalists can verify. **Residual:** people may share an unsigned fake anyway | #11 |
+| Impersonator posts a fake alert from a new key | A8 | Public alerts are signed by a dedicated alert key that only k guardians together can unlock; its public key is published in advance on the activist's profile so journalists can verify. Guardians do not co-sign in public, so their keys stay hidden. See [guardian-confirmation.md](guardian-confirmation.md). **Residual:** people may share an unsigned fake anyway | #11 |
 
 ### 4.3 Identify guardians
 
@@ -106,7 +106,7 @@ Each tree lists the ways to reach the goal, then the mitigation and the roadmap 
 |---|---|---|---|
 | Captors use the activist's unlocked phone to send "found safe" | A2, A3 | All-clear requires the real PIN; the duress PIN produces a fake success and a silent alarm. Guardians are told to verify by voice or video before standing down | #11, #15 |
 | One guardian sends "found safe" | A4 | All-clear from guardians needs 2 distinct guardian signatures | #11 |
-| Impersonator posts "found safe" publicly | A8 | Public updates must be signed by the activist or 2 guardians; unsigned updates are ignored by the apps | #11 |
+| Impersonator posts "found safe" publicly | A8 | Public updates must be signed by the alert key, after an all-clear from the activist or 2 guardians; unsigned updates are ignored by the apps. **Residual:** after a release, one guardian holding the spent alert key could sign a false update (see [guardian-confirmation.md](guardian-confirmation.md#what-is-still-possible-residual-risk)) | #11 |
 
 ### 4.6 Steal or freeze the legal fund
 
@@ -229,3 +229,4 @@ Do not report vulnerabilities in public issues. Use GitHub private vulnerability
 ## Changelog
 
 - **v0.1** (2026-11): first draft for review.
+- **v0.1.1** (2026-11): public alerts are signed by a threshold-unlocked alert key instead of being co-signed by guardians, which would expose guardian keys (#11).
