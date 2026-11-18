@@ -40,6 +40,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":message"))
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.security.crypto)

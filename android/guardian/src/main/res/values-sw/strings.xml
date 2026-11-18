@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele Mlinzi</string>
+
+    <string name="menu_enroll">Sajili kifurushi</string>
+    <string name="menu_inbox">Kikasha cha tahadhari</string>
+    <string name="menu_confirm">Thibitisha tahadhari</string>
+    <string name="menu_all_clear">Hali ni salama</string>
+
+    <string name="transport_note">Hakuna mtandao bado: matukio huhamishwa kama maandishi yaliyonakiliwa hadi usafiri utakapofika. Hakuna kinachotoka kwenye simu chenyewe.</string>
+    <string name="no_names_note">Funguo tu. Programu hii haihifadhi majina, namba wala picha.</string>
+
+    <string name="status_not_enrolled">Hujasajiliwa. Anza na “Sajili kifurushi”.</string>
+    <string name="status_line">Tahadhari %1$d · Uthibitisho %2$d kati ya %3$d · Salama %4$d kati ya %3$d</string>
+    <string name="status_activist_says_safe">Mwanaharakati ametuma ujumbe wa salama. Thibitisha kwa sauti au video kabla hujaripoti salama.</string>
+    <string name="status_released">Tahadhari imetangazwa kwa uthibitisho %1$d.</string>
+
+    <string name="enroll_title">Sajili kifurushi</string>
+    <string name="this_device_key">Ufunguo wa mlinzi wa simu hii (mpe mwanaharakati):</string>
+    <string name="activist_key_hint">Ufunguo wa mwanaharakati, herufi 64 za heksi</string>
+    <string name="guardian_key_hint">Ufunguo wa mlinzi, herufi 64 za heksi</string>
+    <string name="threshold_hint">Kiwango k (2 au zaidi)</string>
+    <string name="share_hint">Sehemu ya mlinzi huyu, herufi 66 za heksi (inahitajika kuthibitisha)</string>
+    <string name="add">Ongeza</string>
+    <string name="remove">Ondoa</string>
+    <string name="save">Hifadhi</string>
+    <string name="guardians_count">Walinzi: %1$d</string>
+    <string name="invalid_key">Ufunguo huo si sahihi.</string>
+    <string name="invalid_share">Sehemu hiyo si herufi 66 za heksi.</string>
+    <string name="invalid_enrollment">Kifurushi kinahitaji ufunguo wa mwanaharakati, funguo 2–10 tofauti za walinzi, na kiwango k cha angalau 2.</string>
+    <string name="enrolled">Kifurushi kimesajiliwa.</string>
+
+    <string name="inbox_title">Kikasha cha tahadhari</string>
+    <string name="inbox_hint">Bandika tukio la herufi 304 hapa</string>
+    <string name="inbox_open">Fungua tukio</string>
+    <string name="inbox_result_count">Imehesabiwa. %1$s</string>
+    <string name="inbox_ignored">Imepuuzwa: %1$s</string>
+    <string name="inbox_bad_text">Maandishi hayo si tukio sahihi.</string>
+
+    <string name="confirm_title">Thibitisha tahadhari</string>
+    <string name="confirm_explainer">Uthibitisho wako hubeba sehemu yako kwa walinzi wengine tu, kamwe kwa mwanaharakati. Kwa %1$d kati ya %2$d tahadhari inatangazwa.</string>
+    <string name="confirm_build">Tengeneza uthibitisho</string>
+    <string name="confirm_needs_share">Sajili sehemu ya mlinzi huyu kwanza.</string>
+    <string name="confirm_done">Uthibitisho umehesabiwa. %1$s</string>
+    <string name="sealed_texts_title">Tuma kila ujumbe kwa mlinzi mmoja:</string>
+
+    <string name="clear_title">Hali ni salama</string>
+    <string name="clear_explainer">Walinzi %1$d pamoja tu wanaweza kumaliza tahadhari, kila mmoja baada ya simu ya sauti au video. Ujumbe wa mwanaharakati mwenyewe haumalizi chochote peke yake.</string>
+    <string name="check_called">Nimezungumza na mwanaharakati kwa simu ya sauti au video</string>
+    <string name="check_free">Wamethibitisha wako huru na salama</string>
+    <string name="check_no_coercion">Sikuona dalili za kulazimishwa</string>
+    <string name="method_voice">Simu ya sauti</string>
+    <string name="method_video">Simu ya video</string>
+    <string name="clear_build">Tengeneza ujumbe wa salama</string>
+    <string name="clear_needs_checklist">Weka alama kwenye visanduku vyote na uchague sauti au video kwanza.</string>
+    <string name="clear_done">Ujumbe wa salama umehesabiwa. %1$s</string>
+
+    <string name="need_enrollment">Sajili kifurushi kwanza.</string>
+    <string name="done">Sawa</string>
+    <string name="unknown_error">Kuna tatizo.</string>
+</resources>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele Guardian</string>
+
+    <string name="menu_enroll">Enroll kit</string>
+    <string name="menu_inbox">Alarm inbox</string>
+    <string name="menu_confirm">Confirm alarm</string>
+    <string name="menu_all_clear">All clear</string>
+
+    <string name="transport_note">No network yet: events move as pasted text until the transport lands. Nothing leaves the phone on its own.</string>
+    <string name="no_names_note">Keys only. This app never stores names, numbers or photos.</string>
+
+    <string name="status_not_enrolled">Not enrolled. Start with “Enroll kit”.</string>
+    <string name="status_line">Alarm %1$d · Confirms %2$d of %3$d · Clears %4$d of %3$d</string>
+    <string name="status_activist_says_safe">The activist sent an all-clear. Verify by voice or video before you clear.</string>
+    <string name="status_released">The alert was released with %1$d confirmations.</string>
+
+    <string name="enroll_title">Enroll kit</string>
+    <string name="this_device_key">This phone’s guardian key (share it with the activist):</string>
+    <string name="activist_key_hint">Activist public key, 64 hex characters</string>
+    <string name="guardian_key_hint">Guardian public key, 64 hex characters</string>
+    <string name="threshold_hint">Threshold k (2 or more)</string>
+    <string name="share_hint">This guardian’s share, 66 hex characters (needed to confirm)</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="save">Save</string>
+    <string name="guardians_count">Guardians: %1$d</string>
+    <string name="invalid_key">That key is not a valid guardian key.</string>
+    <string name="invalid_share">That share is not 66 hex characters.</string>
+    <string name="invalid_enrollment">The kit needs an activist key, 2–10 distinct guardian keys and a threshold k of at least 2.</string>
+    <string name="enrolled">Kit enrolled.</string>
+
+    <string name="inbox_title">Alarm inbox</string>
+    <string name="inbox_hint">Paste a 304-character event here</string>
+    <string name="inbox_open">Open event</string>
+    <string name="inbox_result_count">Counted. %1$s</string>
+    <string name="inbox_ignored">Ignored: %1$s</string>
+    <string name="inbox_bad_text">That text is not a valid event.</string>
+
+    <string name="confirm_title">Confirm alarm</string>
+    <string name="confirm_explainer">Your confirmation carries your share to the other guardians only, never to the activist. With %1$d of %2$d the alert goes public.</string>
+    <string name="confirm_build">Build confirmation</string>
+    <string name="confirm_needs_share">Enroll this guardian’s share first.</string>
+    <string name="confirm_done">Confirmation counted. %1$s</string>
+    <string name="sealed_texts_title">Send each text to one guardian:</string>
+
+    <string name="clear_title">All clear</string>
+    <string name="clear_explainer">Only %1$d guardians together can end an alarm, each after a voice or video call. The activist’s own all-clear ends nothing by itself.</string>
+    <string name="check_called">I spoke to the activist by voice or video call</string>
+    <string name="check_free">They confirmed they are free and safe</string>
+    <string name="check_no_coercion">I saw no signs of coercion</string>
+    <string name="method_voice">Voice call</string>
+    <string name="method_video">Video call</string>
+    <string name="clear_build">Build all-clear</string>
+    <string name="clear_needs_checklist">Tick every checklist box and pick voice or video first.</string>
+    <string name="clear_done">All-clear counted. %1$s</string>
+
+    <string name="need_enrollment">Enroll a kit first.</string>
+    <string name="done">Done</string>
+    <string name="unknown_error">Something went wrong.</string>
+</resources>

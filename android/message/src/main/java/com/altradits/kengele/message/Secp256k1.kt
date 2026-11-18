@@ -14,7 +14,7 @@ import java.security.SecureRandom
  * Signing follows BIP-340 with fresh random aux by default; pass [aux] to
  * make a signature deterministic in tests.
  */
-internal object Secp256k1 {
+object Secp256k1 {
     val p: BigInteger = BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16)
     val n: BigInteger = BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16)
     private val gx: BigInteger = BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16)

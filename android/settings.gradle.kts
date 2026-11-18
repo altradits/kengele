@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "kengele"
 include(":app")
+include(":message")
+include(":guardian")
