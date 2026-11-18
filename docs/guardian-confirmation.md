@@ -56,15 +56,18 @@ The result of `Handle` is an `Outcome`:
 |---|---|---|
 | `None` | Below the threshold | Show the count to guardians, privately |
 | `Release` | k fresh, valid confirmations | Publish the alert note **once** |
-| `StandDown` | Alarm ended before release | Tell guardians privately; publish nothing |
-| `FoundSafe` | Alarm ended after release | Publish a "found safe" note |
+| `StandDown` | k guardians cleared it before release | Tell guardians privately; publish nothing |
+| `FoundSafe` | k guardians cleared it after release | Publish a "found safe" note |
+
+`Outcome.ActivistSaysSafe` is set (with action `None`) when the event was the activist's own all-clear: show it to guardians and ask them to verify.
 
 ## Ending an alarm
 
-- **The activist's own all-clear always wins**, at any time. The duress PIN never produces an all-clear (it sends a duress check-in), so a captor holding the phone cannot use this path. Guardians are still told to check by voice or video before standing down ([threat model 4.5](threat-model.md#45-forge-an-all-clear)).
-- **Guardians' all-clear needs k** distinct, fresh guardian all-clears for the same epoch.
+- **Only k guardians can end an alarm.** Every alarm the tally handles is at Level 1 or above (missed check-in, panic or duress), and standing it down needs k distinct, fresh guardian all-clears for the same epoch: the same threshold as a release.
+- **The activist's own all-clear ends nothing** (#30). Captors holding the activist can force the real PIN, so an activist-signed all-clear is recorded, shown to guardians as `ActivistSaysSafe`, and **not counted towards k**. With k = 2, the activist plus one guardian is not enough; two guardians are. It never blocks or delays a release: confirmations keep counting after it. Before Level 1 (reminder and grace period) the watcher, not this tally, handles the activist's own check-in.
+- **Voice or video first.** `Tally.ClearStatus` reports the activist's all-clear, the guardian count, k, and `VerifyFirst` (always true for an open alarm). A guardian app builds its all-clear with `GuardianAllClearEvent`, which refuses (`ErrNotVerified`) unless it is given a `Verification` recording a voice or video call with the activist. The verification stays on the guardian's device; it is not sent on the wire. The app's screens for this are out of scope here; this is the hook they must use.
 - Check-ins, duress check-ins, panics and going-dark events never end an alarm here.
-- Races: an all-clear moves the epoch on, so a confirmation that arrives after it is stale and ignored. If the release happened first, the all-clear produces `FoundSafe` instead.
+- Races: a stand-down by k guardians moves the epoch on, so a confirmation that arrives after it is stale and ignored. If the release happened first, the k guardian all-clears produce `FoundSafe` instead. An activist all-clear in either order changes neither.
 
 ## The public notes
 
@@ -87,7 +90,7 @@ After a release, the k guardians who confirmed hold the alert key. A kit is ther
 
 - **k colluding or coerced guardians** can publish a false alert or a false all-clear. This is the threshold by design; choose guardians who do not all live, work or get arrested together.
 - **After a release, any one guardian who rebuilt the key** could sign a false "found safe" note or a fake second alert with the spent alert key. Apps must ignore alert-key notes after a found-safe note. A threshold signature (for example FROST) would remove this; it is an open question.
-- **Captors with the activist's phone and real PIN** can send a genuine all-clear. Guardians verifying by voice or video is the only defence.
+- **Captors with the activist's phone and real PIN** can send a genuine activist all-clear. It no longer ends the alarm, but it can still mislead guardians, and captors can coerce the activist through a voice or video call too. k guardians must each verify; choose guardians who know the activist well enough to notice signs of coercion, and agree a spoken duress word in advance.
 - **Unsigned fakes** shared on social media cannot be stopped; the published alert-key fingerprint lets journalists check.
 - **Timing of confirmations** is visible to relays as gift-wrapped traffic between guardians (see [nostr-transport.md](nostr-transport.md)).
 
@@ -95,10 +98,10 @@ After a release, the k guardians who confirmed hold the alert key. A kit is ther
 
 1. Should the alert key be replaced by a FROST threshold key, so no single guardian ever holds it, even after a release?
 2. Where the kit lives: inside the guardian's encrypted plan (preferred), and how the activist delivers kits safely at enrolment.
-3. Should an activist all-clear after a duress or panic event need a second factor (for example a guardian's voice check recorded in the app) before it stands the alarm down?
+3. ~~Should an activist all-clear after a duress or panic event need a second factor?~~ **Answered in #30:** yes, and more. After Level 1 an activist all-clear never stands an alarm down; k guardians must, each after a voice or video check.
 4. Is 24 hours the right confirmation lifetime, or should it follow the watch window?
 5. How the activist's profile announces the alert key (a field in the kind 0 profile, or a dedicated event).
 
 ## Tests
 
-`go test -race ./internal/confirm` covers: 1 of 3 publishes nothing; 2 of 3 publishes once; other thresholds (2-of-2, 3-of-3, 3-of-5, 10-of-10) and invalid ones; duplicate confirmations; expired confirmations; forged confirmations (stranger, the activist, altered in transit); a guardian sending a bad share; replay from an earlier alarm; a single coerced guardian; all-clear by the activist and by 2 guardians; found safe after release and the spent kit; all-clear races in both orders; concurrent confirmations releasing exactly once; the duress path; location trails; kit tampering.
+`go test -race ./internal/confirm` covers: 1 of 3 publishes nothing; 2 of 3 publishes once; other thresholds (2-of-2, 3-of-3, 3-of-5, 10-of-10) and invalid ones; duplicate confirmations; expired confirmations; forged confirmations (stranger, the activist, altered in transit); a guardian sending a bad share; replay from an earlier alarm; a single coerced guardian; an activist all-clear alone after panic (alarm stays, release still happens); the activist plus one guardian (not enough); 2 guardians; guardian all-clears refused without a voice or video verification; an activist all-clear racing confirmations; found safe after release and the spent kit; all-clear races in both orders; concurrent confirmations releasing exactly once; the duress path; location trails; kit tampering.

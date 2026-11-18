@@ -269,11 +269,12 @@ func TestReplayFromEarlierAlarm(t *testing.T) {
 	f := newFixture(t, 3, 2)
 	tl := f.tally(t, 0)
 
-	// Alarm 1: guardian 1 confirms, then the activist clears it.
+	// Alarm 1: guardian 1 confirms, then two guardians clear it.
 	ev1, _ := ConfirmEvent(f.kits[1], 1, 0, t0)
 	opened1 := f.over(t, ev1, f.guardians[1].priv, f.guardians[0], tl.Senders(), t0)
 	expect(t, None)(tl.Handle(opened1, t0))
-	expect(t, StandDown)(f.clearFrom(t, tl, f.activist.priv, 1, t0.Add(time.Minute), t0.Add(time.Minute)))
+	expect(t, None)(f.clearFrom(t, tl, f.guardians[0].priv, 1, t0.Add(time.Minute), t0.Add(time.Minute)))
+	expect(t, StandDown)(f.clearFrom(t, tl, f.guardians[2].priv, 1, t0.Add(time.Minute), t0.Add(time.Minute)))
 	if tl.Epoch() != 2 {
 		t.Fatalf("epoch = %d", tl.Epoch())
 	}
@@ -324,17 +325,68 @@ func TestSingleCoercedGuardianCannotPublish(t *testing.T) {
 	}
 }
 
-func TestAllClearByActivist(t *testing.T) {
+func TestActivistAllClearAloneEndsNothing(t *testing.T) {
+	// After a panic, captors force the activist to unlock with the real
+	// PIN and send an all-clear. The alarm must stay, and the release must
+	// still happen when a second guardian confirms.
 	f := newFixture(t, 3, 2)
 	tl := f.tally(t, 0)
+	panicEv := message.Event{Kind: message.KindPanic, CreatedAt: t0}
+	o, err := tl.Handle(f.over(t, panicEv, f.activist.priv, f.guardians[0], tl.Senders(), t0), t0)
+	mustErr(t, o, err, ErrIgnoredKind)
 	expect(t, None)(f.confirm(t, tl, 0, 1, t0, t0))
-	o := expect(t, StandDown)(f.clearFrom(t, tl, f.activist.priv, 1, t0, t0))
-	if o.By != ByActivist {
-		t.Fatalf("by = %v", o.By)
+
+	o = expect(t, None)(f.clearFrom(t, tl, f.activist.priv, 1, t0, t0))
+	if !o.ActivistSaysSafe || o.By != NotCleared || tl.Epoch() != 1 {
+		t.Fatalf("activist all-clear ended the alarm: %+v epoch=%d", o, tl.Epoch())
 	}
-	// The pending confirmation died with the alarm.
-	o2, err := f.confirm(t, tl, 1, 1, t0, t0)
-	mustErr(t, o2, err, ErrStale)
+	o, err = f.clearFrom(t, tl, f.activist.priv, 1, t0, t0)
+	mustErr(t, o, err, ErrDuplicate)
+
+	cs := tl.ClearStatus(t0)
+	if !cs.ActivistSaysSafe || !cs.VerifyFirst || cs.GuardianClears != 0 || cs.Needed != 2 || cs.Epoch != 1 {
+		t.Fatalf("clear status = %+v", cs)
+	}
+	// The pending confirmation survived, and the second one releases.
+	expect(t, Release)(f.confirm(t, tl, 2, 1, t0.Add(time.Minute), t0.Add(time.Minute)))
+}
+
+func TestActivistPlusOneGuardianIsNotEnough(t *testing.T) {
+	// The activist's vote never counts towards k: with k=2 the activist and
+	// one guardian do not stand down; a second guardian does.
+	f := newFixture(t, 3, 2)
+	tl := f.tally(t, 0)
+	expect(t, None)(f.clearFrom(t, tl, f.activist.priv, 1, t0, t0))
+	expect(t, None)(f.clearFrom(t, tl, f.guardians[1].priv, 1, t0, t0))
+	if cs := tl.ClearStatus(t0); cs.GuardianClears != 1 || !cs.ActivistSaysSafe {
+		t.Fatalf("clear status = %+v", cs)
+	}
+	o := expect(t, StandDown)(f.clearFrom(t, tl, f.guardians[2].priv, 1, t0, t0))
+	if o.By != ByGuardians || tl.Epoch() != 2 {
+		t.Fatalf("by=%v epoch=%d", o.By, tl.Epoch())
+	}
+	// The next alarm starts with a clean slate.
+	if cs := tl.ClearStatus(t0); cs.ActivistSaysSafe || cs.GuardianClears != 0 || cs.Epoch != 2 {
+		t.Fatalf("clear status after stand-down = %+v", cs)
+	}
+}
+
+func TestGuardianAllClearNeedsVerification(t *testing.T) {
+	f := newFixture(t, 3, 2)
+	for _, v := range []Verification{
+		{},
+		{Method: "sms", At: t0},
+		{Method: "voice"},
+		{Method: "video", At: t0.Add(time.Hour)}, // in the future
+	} {
+		if _, err := GuardianAllClearEvent(f.activist.pub, 1, 0, t0, v); !errors.Is(err, ErrNotVerified) {
+			t.Fatalf("%+v: err = %v", v, err)
+		}
+	}
+	ev, err := GuardianAllClearEvent(f.activist.pub, 1, 0, t0, Verification{Method: "video", At: t0.Add(-5 * time.Minute)})
+	if err != nil || ev.Kind != message.KindAllClear {
+		t.Fatalf("verified all-clear: %v %v", ev.Kind, err)
+	}
 }
 
 func TestAllClearByTwoGuardians(t *testing.T) {
@@ -395,29 +447,77 @@ func TestFoundSafeAfterRelease(t *testing.T) {
 }
 
 func TestAllClearRaces(t *testing.T) {
-	// All-clear first, confirmation after: the confirmation is stale.
+	// k guardian all-clears first, confirmation after: the confirmation is
+	// stale and nothing goes public.
 	f := newFixture(t, 3, 2)
 	tl := f.tally(t, 0)
 	expect(t, None)(f.confirm(t, tl, 0, 1, t0, t0))
-	ev, _ := ConfirmEvent(f.kits[1], 1, 0, t0)                                     // signed before the all-clear...
-	opened := f.over(t, ev, f.guardians[1].priv, f.guardians[0], tl.Senders(), t0) // ...delivered after it
-	expect(t, StandDown)(f.clearFrom(t, tl, f.activist.priv, 1, t0, t0))
+	ev, _ := ConfirmEvent(f.kits[1], 1, 0, t0)                                     // signed before the all-clears...
+	opened := f.over(t, ev, f.guardians[1].priv, f.guardians[0], tl.Senders(), t0) // ...delivered after them
+	expect(t, None)(f.clearFrom(t, tl, f.guardians[0].priv, 1, t0, t0))
+	expect(t, StandDown)(f.clearFrom(t, tl, f.guardians[2].priv, 1, t0, t0))
 	o, err := tl.Handle(opened, t0)
 	mustErr(t, o, err, ErrStale)
 	if tl.Released() {
 		t.Fatal("released after all-clear")
 	}
 
-	// Confirmation first, all-clear after: release, then found safe.
+	// An activist all-clear racing confirmations neither blocks nor delays
+	// the release.
+	f1 := newFixture(t, 3, 2)
+	tl1 := f1.tally(t, 0)
+	expect(t, None)(f1.confirm(t, tl1, 0, 1, t0, t0))
+	expect(t, None)(f1.clearFrom(t, tl1, f1.activist.priv, 1, t0, t0))
+	expect(t, Release)(f1.confirm(t, tl1, 1, 1, t0, t0))
+
+	// Release first, all-clears after: the activist alone gives no found
+	// safe; k guardians do.
 	f2 := newFixture(t, 3, 2)
 	tl2 := f2.tally(t, 0)
 	expect(t, None)(f2.confirm(t, tl2, 0, 1, t0, t0))
 	expect(t, Release)(f2.confirm(t, tl2, 1, 1, t0, t0))
-	expect(t, FoundSafe)(f2.clearFrom(t, tl2, f2.activist.priv, 1, t0, t0))
+	o = expect(t, None)(f2.clearFrom(t, tl2, f2.activist.priv, 1, t0, t0))
+	if !o.ActivistSaysSafe || o.Alert != nil || o.AlertKey != nil {
+		t.Fatalf("activist all-clear after release: %+v", o)
+	}
+	expect(t, None)(f2.clearFrom(t, tl2, f2.guardians[1].priv, 1, t0, t0))
+	expect(t, FoundSafe)(f2.clearFrom(t, tl2, f2.guardians[2].priv, 1, t0, t0))
 
-	// A stale activist all-clear (from alarm 1) cannot end alarm 2.
+	// A stale all-clear (from alarm 1) cannot touch alarm 2.
 	o, err = f2.clearFrom(t, tl2, f2.activist.priv, 1, t0, t0)
 	mustErr(t, o, err, ErrStale)
+}
+
+func TestConcurrentActivistAllClearAndConfirms(t *testing.T) {
+	f := newFixture(t, 5, 3)
+	tl := f.tally(t, 0)
+	var evs []*message.Event
+	for i := 0; i < 5; i++ {
+		ev, _ := ConfirmEvent(f.kits[i], 1, 0, t0)
+		evs = append(evs, f.over(t, ev, f.guardians[i].priv, f.guardians[0], tl.Senders(), t0))
+	}
+	ac, _ := AllClearEvent(f.activist.pub, 1, 0, t0)
+	evs = append(evs, f.over(t, ac, f.activist.priv, f.guardians[0], tl.Senders(), t0))
+	done := make(chan Outcome, len(evs))
+	for _, e := range evs {
+		go func(e *message.Event) {
+			o, _ := tl.Handle(e, t0)
+			done <- o
+		}(e)
+	}
+	releases := 0
+	for range evs {
+		o := <-done
+		if o.Action == Release {
+			releases++
+		}
+		if o.Action == StandDown || o.Action == FoundSafe {
+			t.Fatalf("alarm ended without guardians: %+v", o)
+		}
+	}
+	if releases != 1 {
+		t.Fatalf("released %d times", releases)
+	}
 }
 
 func TestConcurrentHandle(t *testing.T) {

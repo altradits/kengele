@@ -45,7 +45,8 @@ type ClearedBy int
 
 const (
 	NotCleared ClearedBy = iota
-	ByActivist
+	// ByGuardians: k distinct guardians signed an all-clear. It is the only
+	// way an alarm ends here; see Tally.allClear.
 	ByGuardians
 )
 
@@ -60,6 +61,10 @@ type Outcome struct {
 	AlertKey *btcec.PrivateKey
 	// Confirmed is how many distinct guardians the release counted.
 	Confirmed int
+	// ActivistSaysSafe is set when this event was the activist's own
+	// all-clear. It ends nothing: the app must tell guardians to verify by
+	// voice or video, because captors may have forced it with the real PIN.
+	ActivistSaysSafe bool
 }
 
 // Errors from Tally.Handle. All of them mean "ignore this event".
@@ -87,6 +92,43 @@ type vote struct {
 type epochState struct {
 	confirms map[[32]byte]vote
 	clears   map[[32]byte]time.Time
+	// activistClear is when the activist signed an all-clear for this
+	// alarm, zero if never. It is shown to guardians but never counted.
+	activistClear time.Time
+}
+
+// ClearStatus is what a guardian's app shows before its user may send an
+// all-clear for the current alarm.
+type ClearStatus struct {
+	Epoch uint32
+	// ActivistSaysSafe: the activist signed an all-clear for this alarm. On
+	// its own it proves nothing; captors can force the real PIN.
+	ActivistSaysSafe bool
+	// GuardianClears is how many distinct, fresh guardian all-clears count
+	// so far; Needed is the threshold k.
+	GuardianClears int
+	Needed         int
+	// VerifyFirst is true for every open alarm. The app must ask its user
+	// to speak to the activist by voice or video call, and to be satisfied
+	// they are free and not being coerced, before it builds a guardian
+	// all-clear with GuardianAllClearEvent.
+	VerifyFirst bool
+}
+
+// ClearStatus reports the all-clear state of the current alarm.
+func (t *Tally) ClearStatus(now time.Time) ClearStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	cs := ClearStatus{Epoch: t.cur, Needed: t.kit.Threshold, VerifyFirst: true}
+	if st, ok := t.byEp[t.cur]; ok {
+		cs.ActivistSaysSafe = !st.activistClear.IsZero()
+		for _, at := range st.clears {
+			if fresh(at, now, t.ttl) {
+				cs.GuardianClears++
+			}
+		}
+	}
+	return cs
 }
 
 // Tally runs on each guardian's device, one per watched activist. It counts
@@ -286,10 +328,18 @@ func (t *Tally) allClear(e *message.Event, now time.Time) (Outcome, error) {
 
 	switch {
 	case e.Signer == t.p.activist:
-		// The activist's own signed all-clear always wins. The duress PIN
-		// never produces one (it sends a duress check-in instead), so a
-		// captor with the phone cannot use this path; see #15.
-		return t.end(c.epoch, ByActivist), nil
+		// Every alarm the tally sees is at Level 1 or above (missed,
+		// panic or duress). Captors holding the activist can force the
+		// real PIN, so the activist's own all-clear never ends an alarm
+		// and is not counted towards k. It is recorded and shown to
+		// guardians, who must verify by voice or video and then send
+		// their own all-clears. It never blocks or delays a release.
+		st := t.state(c.epoch)
+		if !st.activistClear.IsZero() {
+			return Outcome{}, ErrDuplicate
+		}
+		st.activistClear = e.CreatedAt
+		return Outcome{Epoch: c.epoch, ActivistSaysSafe: true}, nil
 	case t.enr[e.Signer]:
 		if !fresh(e.CreatedAt, now, t.ttl) {
 			return Outcome{}, ErrExpired
