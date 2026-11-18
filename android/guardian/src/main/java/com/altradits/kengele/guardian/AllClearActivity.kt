@@ -11,6 +11,7 @@ import com.altradits.kengele.guardian.confirm.AllClearChecklist
 import com.altradits.kengele.guardian.confirm.ConfirmBodies
 import com.altradits.kengele.guardian.confirm.ConfirmException
 import com.altradits.kengele.guardian.confirm.TallyException
+import com.altradits.kengele.guardian.nostr.NostrService
 import com.altradits.kengele.message.KengeleMessage
 
 /**
@@ -40,6 +41,7 @@ class AllClearActivity : AppCompatActivity() {
         texts = LinearLayout(this)
         texts.orientation = LinearLayout.VERTICAL
         column.addView(texts)
+        val nostrLine = Ui.addText(column, "", 14f)
         val result = Ui.addText(column, "")
         Ui.addButton(column, getString(R.string.clear_build)) {
             val t = GuardianState.tally()
@@ -93,12 +95,41 @@ class AllClearActivity : AppCompatActivity() {
                 R.string.clear_done,
                 getString(R.string.status_line, c.epoch, c.confirms, c.needed, s.guardianClears),
             )
+            sendOverNostr(nostrLine, inner, priv, t.recipients())
             refresh(explainer)
         }
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
         refresh(explainer)
+    }
+
+    /**
+     * Sends the sealed event to every recipient guardian over Nostr; the
+     * shown texts stay as the fallback when no relay is reachable.
+     */
+    private fun sendOverNostr(line: TextView, inner: ByteArray, priv: ByteArray, recipients: List<ByteArray>) {
+        val bg = Thread {
+            val wires = recipients.map { KengeleMessage.sealInner(inner, priv, it) }
+            var failed = false
+            val summary = try {
+                NostrService.sendNow(wires, recipients)
+            } catch (e: Exception) {
+                failed = true
+                null
+            }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                line.text = when {
+                    failed -> getString(R.string.unknown_error)
+                    summary == null -> getString(R.string.nostr_send_none)
+                    summary.queued == 0 -> getString(R.string.nostr_sent_all, summary.total)
+                    else -> getString(R.string.nostr_sent_partial, summary.reached, summary.total)
+                }
+            }
+        }
+        bg.isDaemon = true
+        bg.start()
     }
 
     private fun refresh(explainer: TextView) {

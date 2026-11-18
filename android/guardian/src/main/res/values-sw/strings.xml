@@ -6,8 +6,9 @@
     <string name="menu_inbox">Kikasha cha tahadhari</string>
     <string name="menu_confirm">Thibitisha tahadhari</string>
     <string name="menu_all_clear">Hali ni salama</string>
+    <string name="menu_settings">Mipangilio ya relay</string>
 
-    <string name="transport_note">Hakuna mtandao bado: matukio huhamishwa kama maandishi yaliyonakiliwa hadi usafiri utakapofika. Hakuna kinachotoka kwenye simu chenyewe.</string>
+    <string name="transport_note">Tahadhari hufika kupitia relay zako za Nostr zikiweshwa, au kama maandishi yaliyonakiliwa. Hakuna kinachotoka kwenye simu chenyewe.</string>
     <string name="no_names_note">Funguo tu. Programu hii haihifadhi majina, namba wala picha.</string>
 
     <string name="status_not_enrolled">Hujasajiliwa. Anza na “Sajili kifurushi”.</string>
@@ -54,6 +55,21 @@
     <string name="clear_build">Tengeneza ujumbe wa salama</string>
     <string name="clear_needs_checklist">Weka alama kwenye visanduku vyote na uchague sauti au video kwanza.</string>
     <string name="clear_done">Ujumbe wa salama umehesabiwa. %1$s</string>
+
+    <string name="settings_title">Mipangilio ya relay</string>
+    <string name="relay_hint">Anwani ya relay, mfano wss://relay.example</string>
+    <string name="relays_count">Relay: %1$d</string>
+    <string name="min_accepted_hint">Relay zinazopaswa kukubali (1 au zaidi)</string>
+    <string name="invalid_relay">Anwani hiyo ya relay si sahihi.</string>
+    <string name="invalid_min_accepted">Angalau relay 1 lazima ikubali.</string>
+    <string name="settings_saved">Mipangilio imehifadhiwa.</string>
+
+    <string name="nostr_listening">Inasikiliza kwenye relay %1$d kati ya %2$d.</string>
+    <string name="nostr_none">Hakuna relay — ongeza kwenye Mipangilio, au bandika matukio hapa chini.</string>
+    <string name="nostr_send_none">Hakuna relay — ziweke kwenye Mipangilio, au tuma ujumbe mwenyewe.</string>
+    <string name="nostr_from_net">Kutoka mtandaoni. %1$s</string>
+    <string name="nostr_sent_all">Zote %1$d zimefika kwenye relay.</string>
+    <string name="nostr_sent_partial">%1$d kati ya %2$d zimefika; zilizobaki zitajaribu tena.</string>
 
     <string name="need_enrollment">Sajili kifurushi kwanza.</string>
     <string name="done">Sawa</string>

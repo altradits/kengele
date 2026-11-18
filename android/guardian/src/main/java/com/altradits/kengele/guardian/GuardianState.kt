@@ -8,6 +8,7 @@ import androidx.security.crypto.MasterKey
 import com.altradits.kengele.guardian.confirm.Hex
 import com.altradits.kengele.guardian.confirm.Tally
 import com.altradits.kengele.message.Secp256k1
+import com.altradits.kengele.message.nostr.RelayUrl
 import java.security.SecureRandom
 
 /**
@@ -92,6 +93,22 @@ object GuardianState {
 
     fun nowSecs(): Long = System.currentTimeMillis() / 1000
 
+    /** The guardian's Nostr relays, normalized and sorted; empty until configured in Settings. */
+    fun relays(): List<String> =
+        (prefs.getStringSet(RELAYS, emptySet()) ?: emptySet()).sorted()
+
+    /** Stores [urls] after normalizing; invalid addresses are dropped. */
+    fun setRelays(urls: List<String>) {
+        prefs.edit().putStringSet(RELAYS, RelayUrl.normalizeAll(urls).toSet()).apply()
+    }
+
+    /** How many relays must accept a gift wrap for a send to count as sent. */
+    fun minAccepted(): Int = prefs.getInt(MIN_ACCEPTED, 1).coerceAtLeast(1)
+
+    fun setMinAccepted(n: Int) {
+        prefs.edit().putInt(MIN_ACCEPTED, n.coerceAtLeast(1)).apply()
+    }
+
     private fun newPrivKey(): ByteArray {
         val random = SecureRandom()
         while (true) {
@@ -115,4 +132,6 @@ object GuardianState {
     private const val THRESHOLD = "threshold"
     private const val SHARE = "own_share"
     private const val SEQ = "seq"
+    private const val RELAYS = "relays"
+    private const val MIN_ACCEPTED = "min_accepted"
 }

@@ -33,6 +33,9 @@ class GuardianMainActivity : AppCompatActivity() {
         Ui.addButton(column, getString(R.string.menu_all_clear)) {
             startActivity(Intent(this, AllClearActivity::class.java))
         }
+        Ui.addButton(column, getString(R.string.menu_settings)) {
+            startActivity(Intent(this, RelaySettingsActivity::class.java))
+        }
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
