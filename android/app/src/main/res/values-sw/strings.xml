@@ -8,7 +8,7 @@
     <string name="menu_checkin">Jitokeze</string>
     <string name="menu_panic">Hatari</string>
 
-    <string name="transport_stub">Mfano: utumaji haujajengwa, hakuna kinachotoka kwenye simu bado.</string>
+    <string name="transport_stub">Check-in hutoka kwa SMS pekee (hiari); utumaji wa Nostr haujaunganishwa bado.</string>
     <string name="status_line">Walinzi: %1$d · Kipindi: %2$s</string>
     <string name="status_window_set">dk %1$d</string>
     <string name="window_none">hakijawekwa</string>

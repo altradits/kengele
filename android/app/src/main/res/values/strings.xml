@@ -8,7 +8,7 @@
     <string name="menu_checkin">Check in</string>
     <string name="menu_panic">Panic</string>
 
-    <string name="transport_stub">Skeleton: sending is stubbed, nothing leaves the phone yet.</string>
+    <string name="transport_stub">Check-ins leave by SMS only (opt-in); Nostr sending is not wired yet.</string>
     <string name="status_line">Guardians: %1$d · Window: %2$s</string>
     <string name="status_window_set">%1$d min</string>
     <string name="window_none">not set</string>
