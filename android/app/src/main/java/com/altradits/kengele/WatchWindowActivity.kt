@@ -43,6 +43,9 @@ class WatchWindowActivity : AppCompatActivity() {
                 return@addButton
             }
             AppState.saveWindow(window)
+            // A fresh window arms the mesh radio; the service itself checks
+            // permissions and Bluetooth before starting.
+            com.altradits.kengele.mesh.MeshService.startIfWindowActive(this)
             Toast.makeText(this, R.string.window_saved, Toast.LENGTH_SHORT).show()
             finish()
         }

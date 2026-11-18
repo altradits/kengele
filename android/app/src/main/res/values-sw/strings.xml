@@ -56,6 +56,28 @@
     <string name="yes">Ndiyo</string>
     <string name="no">Hapana</string>
 
+    <string name="menu_mesh">Mtandao</string>
+
+    <string name="mesh_title">Usafirishaji wa mtandao</string>
+    <string name="mesh_relaying">Inasambaza bila kusoma</string>
+    <string name="mesh_no_path">Hakuna njia — kimya ni salama</string>
+    <string name="mesh_advertising">Inatangaza: %1$s</string>
+    <string name="mesh_scanning">Inatafuta: %1$s</string>
+    <string name="mesh_links">Viungo hai: %1$d</string>
+    <string name="mesh_relayed">Datagramu zilizosambazwa: %1$d</string>
+    <string name="mesh_start">Anzisha mtandao</string>
+    <string name="mesh_stop">Simamisha mtandao</string>
+    <string name="mesh_running">Mtandao unafanya kazi.</string>
+    <string name="mesh_stopped">Mtandao umezimwa.</string>
+    <string name="mesh_perm_title">Ruhusa ya Bluetooth</string>
+    <string name="mesh_perm_rationale">Kengele hutumia Bluetooth kusafirisha tahadhari zilizofungwa kati ya simu zilizo karibu wakati wa kipindi chako. Haitumii GPS kamwe.</string>
+    <string name="mesh_perm_allow">Endelea</string>
+    <string name="mesh_perm_denied">Ruhusa ya Bluetooth imekataliwa. Mtandao umezimwa.</string>
+    <string name="mesh_service_name">Usafirishaji wa mtandao</string>
+    <string name="mesh_service_text">Inasafirisha tahadhari zilizofungwa kwa simu zilizo karibu.</string>
+    <string name="mesh_window_inactive">Mtandao hufanya kazi wakati wa kipindi chako. Weka kipindi kwanza.</string>
+    <string name="mesh_unavailable">Bluetooth LE haipatikani kwenye simu hii.</string>
+
     <string name="need_setup">Weka walinzi, kipindi na PIN kwanza.</string>
     <string name="result_ok">Sawa</string>
     <string name="result_try_again">Jaribu tena</string>

@@ -56,6 +56,28 @@
     <string name="yes">Yes</string>
     <string name="no">No</string>
 
+    <string name="menu_mesh">Mesh</string>
+
+    <string name="mesh_title">Mesh carry</string>
+    <string name="mesh_relaying">Relaying blindly</string>
+    <string name="mesh_no_path">No path — silence fails safe</string>
+    <string name="mesh_advertising">Advertising: %1$s</string>
+    <string name="mesh_scanning">Scanning: %1$s</string>
+    <string name="mesh_links">Live links: %1$d</string>
+    <string name="mesh_relayed">Datagrams relayed: %1$d</string>
+    <string name="mesh_start">Start mesh</string>
+    <string name="mesh_stop">Stop mesh</string>
+    <string name="mesh_running">Mesh is running.</string>
+    <string name="mesh_stopped">Mesh is off.</string>
+    <string name="mesh_perm_title">Bluetooth permission</string>
+    <string name="mesh_perm_rationale">Kengele uses Bluetooth to carry sealed alarms between nearby phones during your watch window. It never uses GPS.</string>
+    <string name="mesh_perm_allow">Continue</string>
+    <string name="mesh_perm_denied">Bluetooth permission denied. Mesh carry stays off.</string>
+    <string name="mesh_service_name">Mesh carry</string>
+    <string name="mesh_service_text">Carrying sealed alarms for nearby phones.</string>
+    <string name="mesh_window_inactive">Mesh runs during your watch window. Set one first.</string>
+    <string name="mesh_unavailable">Bluetooth LE is not available on this phone.</string>
+
     <string name="need_setup">Set guardians, a window and PINs first.</string>
     <string name="result_ok">Done</string>
     <string name="result_try_again">Try again</string>

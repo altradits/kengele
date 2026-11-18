@@ -39,6 +39,9 @@ class MainActivity : AppCompatActivity() {
         Ui.addButton(column, getString(R.string.menu_panic)) {
             confirmPanic()
         }
+        Ui.addButton(column, getString(R.string.menu_mesh)) {
+            startActivity(Intent(this, com.altradits.kengele.mesh.MeshStatusActivity::class.java))
+        }
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
