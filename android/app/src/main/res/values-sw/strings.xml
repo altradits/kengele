@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele</string>
+
+    <string name="menu_guardians">Walinzi</string>
+    <string name="menu_window">Kipindi cha ulinzi</string>
+    <string name="menu_pins">Weka PIN</string>
+    <string name="menu_checkin">Jitokeze</string>
+    <string name="menu_panic">Hatari</string>
+
+    <string name="transport_stub">Mfano: utumaji haujajengwa, hakuna kinachotoka kwenye simu bado.</string>
+    <string name="status_line">Walinzi: %1$d · Kipindi: %2$s</string>
+    <string name="status_window_set">dk %1$d</string>
+    <string name="window_none">hakijawekwa</string>
+
+    <string name="guardians_title">Walinzi</string>
+    <string name="no_names_note">Funguo tu. Kengele haihifadhi majina, namba wala picha za walinzi.</string>
+    <string name="guardian_key_hint">Ufunguo wa mlinzi, herufi 64 za heksi</string>
+    <string name="add">Ongeza</string>
+    <string name="remove">Ondoa</string>
+    <string name="guardians_count">Walinzi: %1$d kati ya 5</string>
+    <string name="invalid_key">Ufunguo huo si sahihi.</string>
+
+    <string name="window_title">Kipindi cha ulinzi</string>
+    <string name="window_start_in">Anza baada ya (dakika kuanzia sasa)</string>
+    <string name="window_duration">Muda (dakika)</string>
+    <string name="window_interval">Jitokeze kila (dakika)</string>
+    <string name="window_grace">Kuchelewa baada ya (dakika)</string>
+    <string name="window_reminder">Kumbusha kabla ya (dakika)</string>
+    <string name="save">Hifadhi</string>
+    <string name="window_saved">Kipindi kimehifadhiwa.</string>
+    <string name="window_needs_start_end">Kipindi kinahitaji mwanzo na mwisho.</string>
+    <string name="window_end_after_start">Mwisho wa kipindi lazima uwe baada ya mwanzo.</string>
+    <string name="window_interval_positive">Muda kati ya ripoti lazima uwe zaidi ya sifuri.</string>
+    <string name="window_grace_reminder_negative">Muda wa kuchelewa na wa ukumbusho usiwe hasi.</string>
+    <string name="window_reminder_shorter">Ukumbusho lazima uwe mfupi kuliko muda wa ripoti.</string>
+
+    <string name="pins_title">PIN</string>
+    <string name="duress_explainer">Ikiwa mtu anakulazimisha kujitokeza, weka PIN ya shuruti. Inaonyesha skrini ile ile lakini inainua tahadhari kimya kimya.</string>
+    <string name="real_pin">PIN ya kila siku</string>
+    <string name="duress_pin">PIN ya shuruti</string>
+    <string name="pins_invalid">PIN lazima ziwe herufi 4–32 na lazima zitofautiane.</string>
+    <string name="pins_saved">PIN zimehifadhiwa.</string>
+
+    <string name="checkin_title">Jitokeze</string>
+    <string name="enter_pin">Weka PIN</string>
+    <string name="place_hint">Mahali, hiari. Unaandika mwenyewe, kamwe GPS.</string>
+    <string name="checkin_button">Jitokeze</string>
+    <string name="place_too_long">Mahali hapo ni parefu mno (herufi 86 zaidi).</string>
+    <string name="checked_in">Umeripoti.</string>
+    <string name="wrong_pin">PIN si sahihi, jaribu tena.</string>
+
+    <string name="panic_confirm_title">Tuma tahadhari ya hatari?</string>
+    <string name="panic_confirm_message">Hii inawaambia walinzi wako kuwa ni dharura. Itumie tu ukiwa hatarini kweli.</string>
+    <string name="panic_sent">Tahadhari ya hatari imehifadhiwa.</string>
+    <string name="yes">Ndiyo</string>
+    <string name="no">Hapana</string>
+
+    <string name="need_setup">Weka walinzi, kipindi na PIN kwanza.</string>
+    <string name="result_ok">Sawa</string>
+    <string name="result_try_again">Jaribu tena</string>
+    <string name="done">Sawa</string>
+    <string name="unknown_error">Kuna tatizo.</string>
+</resources>
