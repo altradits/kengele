@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,5 +147,62 @@ func TestWatchLoopNostrDown(t *testing.T) {
 	}
 	if strings.Contains(s, "missed") {
 		t.Errorf("nobody should miss: SMS check-in covers one, the other is paused:\n%s", s)
+	}
+}
+
+// A going-dark (#10) pauses the activist at once: the 11:45 deadline passes
+// quietly, the clock resumes when the hold ends at 12:00, and silence past
+// the 1-hour return window misses at 13:01.
+func TestWatchLoopGoingDark(t *testing.T) {
+	plan, err := schedule.ParsePlan([]byte(planJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
+	k, _ := plan.Activists[0].Key()
+	gd, err := message.GoingDarkEvent(message.GoingDark{
+		Dark:         2 * time.Hour,
+		ReturnWindow: time.Hour,
+		PlanStart:    start,
+		PlanEnd:      start.Add(8 * time.Hour),
+		Interval:     90 * time.Minute,
+		Grace:        15 * time.Minute,
+		Reminder:     10 * time.Minute,
+		Transports:   message.GoingDarkNostr,
+		AlertHash:    sha256.Sum256([]byte("made-up alert KISUMU-C")),
+		ShutdownRef:  "KISUMU-C",
+	}, 1, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gd.Signer = k
+	ticks := make(chan time.Time)
+	var out bytes.Buffer
+	done := make(chan error)
+	tr := &fakeTransport{}
+	// Queued before the loop starts, so the initial step at 10:00 picks it
+	// up deterministically and the hold runs 10:00 to 12:00.
+	tr.send(transport.Nostr, gd)
+	go func() {
+		done <- watch(context.Background(), plan, ticks, func() time.Time { return start }, staticProbe{}, tr, &out)
+	}()
+	for _, m := range []int{121, 181} {
+		ticks <- start.Add(time.Duration(m) * time.Minute)
+	}
+	close(ticks)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	s := out.String()
+	for _, want := range []string{
+		"going-dark",
+		"deadline 2026-01-15T12:00:00Z", // the pause ends here
+		"dark-expired",
+		"missed",
+		"deadline 2026-01-15T13:01:00Z", // return window over, alarm
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("output lacks %q:\n%s", want, s)
+		}
 	}
 }

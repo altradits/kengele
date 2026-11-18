@@ -1,6 +1,7 @@
 package schedule
 
 import (
+	"crypto/sha256"
 	"runtime"
 	"strings"
 	"testing"
@@ -42,6 +43,7 @@ type step struct {
 	sig  int // signed CreatedAt, minutes after t0
 	seq  uint32
 	via  transport.Kind // transport for opEvent (default Nostr), opDown, opUp
+	body []byte         // opEvent body; nil except for going-dark steps
 }
 
 func tick(m int) step    { return step{op: opTick, at: m} }
@@ -58,6 +60,37 @@ func evVia(m int, via transport.Kind, who int, k message.Kind, sig int, seq uint
 
 func down(m int, k transport.Kind) step { return step{op: opDown, at: m, via: k} }
 func up(m int, k transport.Kind) step   { return step{op: opUp, at: m, via: k} }
+
+// gdark builds a going-dark step (#10) with the given dark and return
+// windows. The plan, alert hash and shutdown reference are fixed made-up
+// data; only the timing varies between cases.
+func gdark(m, who, sig int, seq uint32, dark, ret time.Duration) step {
+	return step{op: opEvent, at: m, who: who, kind: message.KindGoingDark, sig: sig, seq: seq, via: transport.Nostr, body: mustGoingDarkBody(dark, ret)}
+}
+
+// gdarkBad builds a going-dark step with a raw body the watcher cannot parse.
+func gdarkBad(m, who, sig int, seq uint32, body []byte) step {
+	return step{op: opEvent, at: m, who: who, kind: message.KindGoingDark, sig: sig, seq: seq, via: transport.Nostr, body: body}
+}
+
+func mustGoingDarkBody(dark, ret time.Duration) []byte {
+	e, err := message.GoingDarkEvent(message.GoingDark{
+		Dark:         dark,
+		ReturnWindow: ret,
+		PlanStart:    t0,
+		PlanEnd:      at(480),
+		Interval:     90 * time.Minute,
+		Grace:        15 * time.Minute,
+		Reminder:     10 * time.Minute,
+		Transports:   message.GoingDarkNostr,
+		AlertHash:    sha256.Sum256([]byte("made-up alert KAMUKUNJI-1")),
+		ShutdownRef:  "KAMUKUNJI-1",
+	}, 0, t0)
+	if err != nil {
+		panic("test going-dark: " + err.Error())
+	}
+	return e.Body
+}
 
 type want struct {
 	who      int
@@ -77,6 +110,8 @@ type tcase struct {
 	// via gives an activist's transports; activists not listed are
 	// Nostr-only, the plan default.
 	via map[int][]transport.Kind
+	// dark lists the activists expected to hold a going-dark at the end.
+	dark []int
 }
 
 func run(t *testing.T, c tcase) {
@@ -106,7 +141,7 @@ func run(t *testing.T, c tcase) {
 		case opOnline:
 			got = append(got, e.SetOnline(now, true)...)
 		case opEvent:
-			got = append(got, e.Observe(now, s.via, message.Event{Kind: s.kind, CreatedAt: at(s.sig), Seq: s.seq, Signer: key(s.who)})...)
+			got = append(got, e.Observe(now, s.via, message.Event{Kind: s.kind, CreatedAt: at(s.sig), Seq: s.seq, Signer: key(s.who), Body: s.body})...)
 		case opDown:
 			got = append(got, e.SetTransport(now, s.via, false)...)
 		case opUp:
@@ -132,6 +167,15 @@ func run(t *testing.T, c tcase) {
 			if !d.Equal(at(w.deadline)) {
 				t.Errorf("activist %d: deadline +%v, want +%dm", w.who, d.Sub(t0), w.deadline)
 			}
+		}
+	}
+	expectDark := map[int]bool{}
+	for _, i := range c.dark {
+		expectDark[i] = true
+	}
+	for i := 0; i < n; i++ {
+		if _, isDark := e.GoingDark(key(i)); isDark != expectDark[i] {
+			t.Errorf("activist %d: going-dark %v, want %v", i, isDark, expectDark[i])
 		}
 	}
 	for _, sub := range c.contains {
@@ -402,6 +446,138 @@ func TestSchedule(t *testing.T) {
 			name:  "time running backwards is ignored",
 			steps: []step{tick(0), tick(106), tick(50)},
 			want:  []want{{0, StateMissed, 105}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) { run(t, c) })
+	}
+}
+
+// Going dark (#10): the activist pre-arms a shutdown, the clock pauses at
+// once for that activist only, and resumes when the hold ends.
+func TestGoingDark(t *testing.T) {
+	week := 7 * 24 * time.Hour
+	cases := []tcase{
+		{
+			name:     "going-dark pauses the clock at once",
+			steps:    []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), tick(60)},
+			notices:  []string{"started/0", "going-dark/0"},
+			want:     []want{{0, StatePaused, 105}},
+			dark:     []int{0},
+			contains: []string{"anaenda gizani / going dark", "clock paused until"},
+		},
+		{
+			name:     "going-dark then silence raises the alarm after the return window",
+			steps:    []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), tick(149), tick(150), tick(200), tick(210)},
+			notices:  []string{"started/0", "going-dark/0", "dark-expired/0", "reminder/0", "missed/0"},
+			want:     []want{{0, StateMissed, 210}},
+			contains: []string{"giza kimekwisha / dark period ended"},
+		},
+		{
+			name:    "a short dark moves an unpassed deadline by the hold",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 30*time.Minute, 60*time.Minute), tick(60), tick(110), tick(135)},
+			notices: []string{"started/0", "going-dark/0", "dark-expired/0", "reminder/0", "missed/0"},
+			want:    []want{{0, StateMissed, 135}},
+		},
+		{
+			name:    "going-dark then check-in resumes the clock",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), ev(60, 0, message.KindCheckIn, 60, 2), tick(150)},
+			notices: []string{"started/0", "going-dark/0", "reminder/0"},
+			want:    []want{{0, StateReminder, 165}},
+		},
+		{
+			name:    "a newer going-dark replaces the hold",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 200*time.Minute, 60*time.Minute), gdark(60, 0, 60, 2, 30*time.Minute, 60*time.Minute), tick(90)},
+			notices: []string{"started/0", "going-dark/0", "going-dark/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 135}},
+		},
+		{
+			name: "renewal extends past the first expiry, up to seven days from the renewal",
+			steps: []step{
+				tick(0), gdark(30, 0, 30, 1, week, 2*time.Hour),
+				gdark(9000, 0, 9000, 2, week, 2*time.Hour),
+				tick(10110), tick(19080),
+			},
+			notices: []string{"started/0", "going-dark/0", "going-dark/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 19200}},
+		},
+		{
+			name:     "panic during going-dark still raises the alarm",
+			steps:    []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), ev(40, 0, message.KindPanic, 40, 2), tick(500)},
+			notices:  []string{"started/0", "going-dark/0", "alarm/0"},
+			want:     []want{{0, StateAlarm, -1}},
+			contains: []string{"panic"},
+		},
+		{
+			name:    "duress during going-dark still raises the alarm",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), ev(40, 0, message.KindDuressCheckIn, 40, 2)},
+			notices: []string{"started/0", "going-dark/0", "alarm/0"},
+			want:    []want{{0, StateAlarm, -1}},
+		},
+		{
+			name:    "an unreadable going-dark is dropped",
+			steps:   []step{tick(0), gdarkBad(30, 0, 30, 1, []byte("junk")), tick(95), tick(105)},
+			notices: []string{"started/0", "reminder/0", "missed/0"},
+			want:    []want{{0, StateMissed, 105}},
+		},
+		{
+			name:    "a replayed going-dark is ignored",
+			steps:   []step{tick(0), gdark(30, 0, 30, 5, 60*time.Minute, 60*time.Minute), gdark(60, 0, 60, 5, 200*time.Minute, 60*time.Minute), tick(90)},
+			notices: []string{"started/0", "going-dark/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 165}},
+		},
+		{
+			name:    "going-dark after a missed deadline is recorded but changes nothing",
+			steps:   []step{tick(0), tick(106), gdark(120, 0, 120, 1, 60*time.Minute, 60*time.Minute), tick(500)},
+			notices: []string{"started/0", "reminder/0", "missed/0", "going-dark/0"},
+			want:    []want{{0, StateMissed, 105}},
+		},
+		{
+			name:    "going-dark while offline resumes only after both end",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 60*time.Minute, 60*time.Minute), offline(40), online(70), tick(90)},
+			notices: []string{"started/0", "going-dark/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 165}},
+		},
+		{
+			name:    "final check-in during going-dark clears",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 500*time.Minute, 60*time.Minute), ev(470, 0, message.KindCheckIn, 470, 2)},
+			notices: []string{"started/0", "going-dark/0", "cleared/0"},
+			want:    []want{{0, StateCleared, -1}},
+		},
+		{
+			// The going-dark arrives over Nostr, which proves Nostr
+			// works: the other two are no longer explained by a
+			// shutdown and miss at once, while its sender converts
+			// the hold into a dark pause.
+			name: "going-dark during a mass-silence hold explains that activist",
+			n:    3,
+			steps: []step{
+				tick(0), tick(105), // all held until +225
+				gdark(130, 0, 130, 1, 60*time.Minute, 60*time.Minute),
+				tick(190), tick(225),
+			},
+			notices: []string{
+				"started/0", "started/1", "started/2",
+				"reminder/0", "reminder/1", "reminder/2",
+				"mass-silence/0", "mass-silence/1", "mass-silence/2",
+				"missed/1", "missed/2", "going-dark/0", "dark-expired/0",
+			},
+			want:     []want{{0, StateWaiting, 285}, {1, StateMissed, 225}, {2, StateMissed, 225}},
+			contains: []string{"others are getting through on nostr"},
+		},
+		{
+			name:    "going-dark only pauses its own activist",
+			n:       2,
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 120*time.Minute, 60*time.Minute), tick(105)},
+			notices: []string{"started/0", "started/1", "going-dark/0", "reminder/1", "missed/1"},
+			want:    []want{{0, StatePaused, 105}, {1, StateMissed, 105}},
+			dark:    []int{0},
+		},
+		{
+			name:    "a window that opens during going-dark starts paused",
+			steps:   []step{gdark(-30, 0, -30, 1, 120*time.Minute, 60*time.Minute), tick(0), tick(90)},
+			notices: []string{"going-dark/0", "started/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 225}},
 		},
 	}
 	for _, c := range cases {
