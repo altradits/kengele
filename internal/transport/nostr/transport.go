@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/altradits/kengele/internal/message"
+	"github.com/altradits/kengele/internal/transport"
 	"github.com/btcsuite/btcd/btcec/v2"
 	gn "github.com/nbd-wtf/go-nostr"
 )
@@ -72,6 +73,8 @@ type Result struct {
 type Delivery struct {
 	Event *message.Event
 	Wire  []byte
+	// Via is the route the message arrived on: always transport.Nostr here.
+	Via transport.Kind
 }
 
 // Transport sends and receives Kengele messages over Nostr relays. Its key is
@@ -362,7 +365,7 @@ func (t *Transport) open(ev *gn.Event) (Delivery, bool) {
 	if t.dedup.seen("w:" + hex.EncodeToString(sum[:])) {
 		return Delivery{}, false
 	}
-	return Delivery{Event: e, Wire: wire}, true
+	return Delivery{Event: e, Wire: wire, Via: transport.Nostr}, true
 }
 
 func (t *Transport) isSender(k [32]byte) bool {

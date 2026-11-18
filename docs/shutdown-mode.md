@@ -11,6 +11,29 @@ When a guardian's device sees that its own connection is gone (all relays unreac
 - Missed check-ins **pause** instead of raising the alarm, so a blackout does not trigger hundreds of public false alarms.
 - When the network returns, the clock restarts. The activist has a short window (for example 2 hours) to check in by any route. Otherwise the alarm goes off **the moment the network returns**, not days later when someone finally notices.
 
+### One network at a time
+
+A shutdown rarely takes everything down at once. In Tanzania in 2025 the internet went dark while SMS mostly kept working. So the watcher tracks each route separately (Nostr and SMS today, the mesh later) instead of one "online" switch:
+
+- **Each activist's plan lists the routes they use.** The default is Nostr only; SMS is off unless the activist turns it on ([sms-transport.md](sms-transport.md)). Plans written before this change read as Nostr only.
+- **An activist's clock pauses only when every route they use is down.** If Nostr is down but SMS works, an activist with SMS enabled keeps a running clock and checks in by SMS. A Nostr-only activist pauses.
+- **When a route returns, only the activists who use it resume**, each measured from the moment their own last route went down.
+- **A message proves only the route it came by.** An SMS check-in during an internet shutdown shows that SMS works. It does not end the "many silent at once" hold for activists who only use Nostr; their hold runs its course. A message from an unknown route proves nothing about any network, though it still counts as a check-in.
+- **"Nobody heard from" is also per route.** The mass-silence hold looks only at silence on the routes each silent activist uses.
+
+| Situation | SMS-enabled activist | Nostr-only activist |
+|---|---|---|
+| Nostr down, SMS up | Clock runs; check in by SMS | Paused |
+| SMS down, Nostr up | Clock runs; check in by Nostr | Unaffected |
+| Both down | Paused | Paused |
+| SMS back first | Resumes | Still paused |
+| Nostr back first | Resumes | Resumes |
+| SMS check-in from someone else during a mass-silence hold | Hold ends | Hold continues |
+
+### An activist's all-clear does not end an alarm
+
+A captor can force the activist to unlock with the real PIN. So once an alarm reaches Level 1 (a missed check-in, a panic or a duress check-in), the activist's own all-clear is shown to guardians as "the activist says they are safe" but ends nothing. Only the guardians stand the alarm down together, after a voice or video check ([guardian-confirmation.md](guardian-confirmation.md), #30). Before Level 1, while a check-in is only due or in its grace period, the activist's own all-clear still ends the watch.
+
 Shutdowns often come with a few hours' warning. Uganda's was ordered on 13 January 2026 to take effect at 6pm, two days before the vote. So the activist gets a **"Going dark"** button: it sends the latest plan, the alert written in advance and the guardian list before the network goes down.
 
 ## Principle 2: the alert needs a path out eventually, not a live network

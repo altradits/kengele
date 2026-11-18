@@ -9,14 +9,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/altradits/kengele/internal/transport"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 )
+
+// PlanVersion is the newest plan format this build understands. Version 1
+// added per-activist transports; a plan with no version is version 1 too,
+// because the field only adds an optional key and its default (Nostr only)
+// is what older plans meant.
+const PlanVersion = 1
 
 // Plan is a guardian's watch plan: whom to watch and when. On disk it is
 // always encrypted (see SealPlan); it never holds names, only a label the
 // guardian chooses and the activist's public key.
 type Plan struct {
+	// Version is the plan format. 0 or missing reads as 1. A plan from a
+	// newer build is refused rather than half understood.
+	Version      int            `json:"version,omitempty"`
 	ReturnWindow Duration       `json:"return_window,omitempty"`
 	MassSilence  int            `json:"mass_silence,omitempty"`
 	Activists    []PlanActivist `json:"activists"`
@@ -31,6 +41,10 @@ type PlanActivist struct {
 	Interval Duration  `json:"interval"`
 	Grace    Duration  `json:"grace"`
 	Reminder Duration  `json:"reminder,omitempty"`
+	// Transports the activist uses: "nostr", "sms". Missing means
+	// ["nostr"], the safe default: SMS is off unless the activist turns it
+	// on (docs/sms-transport.md).
+	Transports []string `json:"transports,omitempty"`
 }
 
 // Duration is a time.Duration written as "90m", "2h" in JSON.
@@ -62,6 +76,27 @@ func (a PlanActivist) Key() ([32]byte, error) {
 	return k, nil
 }
 
+// Via decodes the activist's transports, defaulting to Nostr only.
+func (a PlanActivist) Via() ([]transport.Kind, error) {
+	if len(a.Transports) == 0 {
+		return []transport.Kind{transport.Nostr}, nil
+	}
+	var out []transport.Kind
+	seen := map[transport.Kind]bool{}
+	for _, name := range a.Transports {
+		k, err := transport.Parse(name)
+		if err != nil {
+			return nil, fmt.Errorf("schedule: %q: %w", a.Label, err)
+		}
+		if seen[k] {
+			return nil, fmt.Errorf("schedule: %q: transport %q listed twice", a.Label, name)
+		}
+		seen[k] = true
+		out = append(out, k)
+	}
+	return out, nil
+}
+
 // Window returns the activist's watch window.
 func (a PlanActivist) Window() Window {
 	return Window{Start: a.Start, End: a.End, Interval: time.Duration(a.Interval),
@@ -76,6 +111,9 @@ func ParsePlan(b []byte) (*Plan, error) {
 	if err := dec.Decode(&p); err != nil {
 		return nil, fmt.Errorf("schedule: plan: %w", err)
 	}
+	if p.Version < 0 || p.Version > PlanVersion {
+		return nil, fmt.Errorf("schedule: plan version %d is not supported by this build (newest %d)", p.Version, PlanVersion)
+	}
 	if len(p.Activists) == 0 {
 		return nil, errors.New("schedule: plan watches nobody")
 	}
@@ -89,6 +127,9 @@ func ParsePlan(b []byte) (*Plan, error) {
 			return nil, fmt.Errorf("schedule: %q is listed twice", a.Label)
 		}
 		seen[k] = true
+		if _, err := a.Via(); err != nil {
+			return nil, err
+		}
 		if err := a.Window().Validate(); err != nil {
 			return nil, fmt.Errorf("%w (%q)", err, a.Label)
 		}
@@ -108,7 +149,11 @@ func (p *Plan) Load(e *Engine) error {
 		if err != nil {
 			return err
 		}
-		if err := e.Watch(k, a.Window()); err != nil {
+		via, err := a.Via()
+		if err != nil {
+			return err
+		}
+		if err := e.Watch(k, a.Window(), via...); err != nil {
 			return fmt.Errorf("%w (%q)", err, a.Label)
 		}
 	}

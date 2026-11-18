@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/altradits/kengele/internal/transport"
 )
 
 const pk = "0101010101010101010101010101010101010101010101010101010101010101"
@@ -83,6 +85,20 @@ func TestPlanRejects(t *testing.T) {
 }`, `, {"label": "B", "pubkey": "`+pk+`", "start": "2026-01-15T10:00:00Z", "end": "2026-01-15T18:00:00Z", "interval": "90m", "grace": "15m"}]
 }`, 1),
 	}
+	withTransports := func(list string) string {
+		return strings.Replace(goodPlan, `"reminder": "10m"}`, `"reminder": "10m", "transports": `+list+`}`, 1)
+	}
+	bad["mesh not supported yet"] = withTransports(`["nostr", "mesh"]`)
+	bad["unknown transport"] = withTransports(`["carrier pigeon"]`)
+	bad["transport listed twice"] = withTransports(`["sms", "sms"]`)
+	bad["newer plan version"] = strings.Replace(goodPlan, `{
+  "return_window"`, `{
+  "version": 2,
+  "return_window"`, 1)
+	bad["negative plan version"] = strings.Replace(goodPlan, `{
+  "return_window"`, `{
+  "version": -1,
+  "return_window"`, 1)
 	for name, js := range bad {
 		if _, err := ParsePlan([]byte(js)); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -90,5 +106,58 @@ func TestPlanRejects(t *testing.T) {
 		if _, err := SealPlan([]byte(js), pass); err == nil {
 			t.Errorf("%s: sealed", name)
 		}
+	}
+}
+
+func TestPlanTransports(t *testing.T) {
+	// An old plan with no version and no transports is Nostr-only.
+	p, err := ParsePlan([]byte(goodPlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	via, err := p.Activists[0].Via()
+	if err != nil || len(via) != 1 || via[0] != transport.Nostr {
+		t.Fatalf("default transports %v %v, want [nostr]", via, err)
+	}
+
+	v1 := strings.Replace(goodPlan, `{
+  "return_window"`, `{
+  "version": 1,
+  "return_window"`, 1)
+	v1 = strings.Replace(v1, `"reminder": "10m"}`, `"reminder": "10m", "transports": ["sms", "nostr"]}`, 1)
+	p, err = ParsePlan([]byte(v1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	via, _ = p.Activists[0].Via()
+	if len(via) != 2 || via[0] != transport.SMS || via[1] != transport.Nostr {
+		t.Fatalf("transports %v", via)
+	}
+
+	// The transports reach the engine: with Nostr down the activist keeps
+	// running on SMS, and pauses only when SMS goes down too.
+	e := New(p.Config(), t0)
+	if err := p.Load(e); err != nil {
+		t.Fatal(err)
+	}
+	k, _ := p.Activists[0].Key()
+	e.Tick(t0)
+	e.SetTransport(at(10), transport.Nostr, false)
+	if s, _ := e.State(k); s != StateWaiting {
+		t.Errorf("Nostr down: state %v, want waiting", s)
+	}
+	e.SetTransport(at(20), transport.SMS, false)
+	if s, _ := e.State(k); s != StatePaused {
+		t.Errorf("both down: state %v, want paused", s)
+	}
+
+	// Sealing keeps the field.
+	sealed, err := SealPlan([]byte(v1), pass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := OpenPlan(sealed, pass)
+	if err != nil || len(q.Activists[0].Transports) != 2 || q.Version != 1 {
+		t.Fatalf("round trip: %+v %v", q, err)
 	}
 }

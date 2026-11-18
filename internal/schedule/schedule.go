@@ -1,11 +1,17 @@
 // Package schedule is the guardian-side deadline engine. It follows each
 // watched activist's watch window, decides when a check-in is late, and
-// pauses the clock while the guardian is offline, so that a network
-// shutdown never turns into a wave of false alarms.
+// pauses the clock while the guardian cannot reach the activist, so that a
+// network shutdown never turns into a wave of false alarms.
+//
+// Connectivity is tracked per transport (Nostr, SMS). Each activist's clock
+// runs while at least one of the transports their plan enables is up, and
+// pauses only when all of them are down. A message proves only the
+// transport it arrived on: an SMS check-in during an internet shutdown says
+// nothing about Nostr.
 //
 // The engine is passive and has no goroutines: the caller feeds it the
-// time (Tick), connectivity changes (SetOnline) and opened messages
-// (Observe), and acts on the Notices it returns. That keeps it
+// time (Tick), connectivity changes (SetTransport, SetOnline) and opened
+// messages (Observe), and acts on the Notices it returns. That keeps it
 // deterministic under a fake clock. See docs/shutdown-mode.md, principle 1.
 package schedule
 
@@ -16,6 +22,7 @@ import (
 	"time"
 
 	"github.com/altradits/kengele/internal/message"
+	"github.com/altradits/kengele/internal/transport"
 )
 
 // State is where one activist's watch stands.
@@ -33,10 +40,12 @@ const (
 	StateMissed
 	// StateAlarm: a duress check-in or panic arrived. Top level.
 	StateAlarm
-	// StatePaused: the guardian is offline (or many activists went silent
-	// at once), so deadlines are frozen.
+	// StatePaused: every transport this activist uses is down for the
+	// guardian (or many activists went silent at once), so the deadline is
+	// frozen.
 	StatePaused
-	// StateCleared: the window ended with a final check-in, or all clear.
+	// StateCleared: the window ended with a final check-in, an all-clear
+	// before Level 1, or a guardian stand-down (StandDown).
 	StateCleared
 )
 
@@ -53,18 +62,19 @@ func (s State) String() string {
 type NoticeKind int
 
 const (
-	NoticeStarted     NoticeKind = iota // window opened
-	NoticeReminder                      // check-in is close to due
-	NoticeMissed                        // level 1: tell guardians privately
-	NoticeAlarm                         // duress or panic: top level
-	NoticeRecovered                     // a check-in arrived after a missed deadline
-	NoticeCleared                       // window finished or all clear
-	NoticePaused                        // guardian offline: clock paused
-	NoticeResumed                       // guardian back online: clock running
-	NoticeMassSilence                   // several activists silent at once
+	NoticeStarted      NoticeKind = iota // window opened
+	NoticeReminder                       // check-in is close to due
+	NoticeMissed                         // level 1: tell guardians privately
+	NoticeAlarm                          // duress or panic: top level
+	NoticeRecovered                      // a check-in arrived after a missed deadline
+	NoticeCleared                        // window finished or all clear
+	NoticePaused                         // all of the activist's transports down: clock paused
+	NoticeResumed                        // a transport is back: clock running
+	NoticeMassSilence                    // several activists silent at once
+	NoticeActivistSafe                   // the activist signed an all-clear at Level 1+: shown, ends nothing
 )
 
-var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence"}
+var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence", "activist-says-safe"}
 
 func (k NoticeKind) String() string {
 	if int(k) < len(noticeNames) {
@@ -119,12 +129,13 @@ func (w Window) Validate() error {
 
 // Config tunes the engine. Zero values take the defaults below.
 type Config struct {
-	// ReturnWindow is how long an activist gets to check in after the
-	// network returns, when their deadline fell inside the outage.
+	// ReturnWindow is how long an activist gets to check in after one of
+	// their transports returns, when their deadline fell inside the outage.
 	ReturnWindow time.Duration
 	// MassSilence is how many activists must miss a deadline within
-	// MassSpan, with no message from anyone, before the engine treats it
-	// as a possible shutdown. Negative disables the check.
+	// MassSpan, with no message from anyone on any of their transports,
+	// before the engine treats it as a possible shutdown. Negative
+	// disables the check.
 	MassSilence int
 	// MassSpan is the span for MassSilence.
 	MassSpan time.Duration
@@ -168,37 +179,103 @@ type tracker struct {
 	// massHold is set while a mass-silence hold is in force.
 	massHold bool
 	seen     map[uint32]struct{}
+	// via lists the transports the activist's plan enables.
+	via []transport.Kind
+	// offline is true while every transport in via is down.
+	offline bool
+	// offlineAt is when offline last became true.
+	offlineAt time.Time
+	// activistSaysSafe is set when the activist signed an all-clear after
+	// Level 1 (#30). It is shown to guardians and ends nothing.
+	activistSaysSafe bool
+}
+
+// uses reports whether the tracker's plan enables transport k.
+func (t *tracker) uses(k transport.Kind) bool {
+	for _, v := range t.via {
+		if v == k {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *tracker) due() time.Time { return t.missAt.Add(-t.w.Grace) }
 
 // Engine follows every activist one guardian watches.
 type Engine struct {
-	cfg       Config
-	acts      map[[32]byte]*tracker
-	order     [][32]byte
-	online    bool
-	offlineAt time.Time
-	lastAny   time.Time
-	now       time.Time
+	cfg   Config
+	acts  map[[32]byte]*tracker
+	order [][32]byte
+	// up says, per supported transport, whether the guardian can use it.
+	up map[transport.Kind]bool
+	// heard is when an authenticated message last arrived on each transport.
+	heard map[transport.Kind]time.Time
+	now   time.Time
 }
 
-// New returns an engine that starts online at time now.
+// New returns an engine that starts at time now with every transport up.
 func New(cfg Config, now time.Time) *Engine {
-	return &Engine{cfg: cfg.withDefaults(), acts: map[[32]byte]*tracker{}, online: true, now: now, lastAny: now}
+	e := &Engine{cfg: cfg.withDefaults(), acts: map[[32]byte]*tracker{}, now: now,
+		up: map[transport.Kind]bool{}, heard: map[transport.Kind]time.Time{}}
+	for _, k := range transport.Supported {
+		e.up[k], e.heard[k] = true, now
+	}
+	return e
 }
 
-// Watch adds (or replaces) an activist's window.
-func (e *Engine) Watch(activist [32]byte, w Window) error {
+// Watch adds (or replaces) an activist's window. via lists the transports
+// the activist uses; with none given, the activist is Nostr-only.
+func (e *Engine) Watch(activist [32]byte, w Window, via ...transport.Kind) error {
 	if err := w.Validate(); err != nil {
 		return err
+	}
+	if len(via) == 0 {
+		via = []transport.Kind{transport.Nostr}
+	}
+	var uniq []transport.Kind
+	for _, k := range via {
+		if !transport.IsSupported(k) {
+			return fmt.Errorf("schedule: transport %v is not supported", k)
+		}
+		dup := false
+		for _, u := range uniq {
+			dup = dup || u == k
+		}
+		if !dup {
+			uniq = append(uniq, k)
+		}
 	}
 	if _, ok := e.acts[activist]; !ok {
 		e.order = append(e.order, activist)
 		sort.Slice(e.order, func(i, j int) bool { return string(e.order[i][:]) < string(e.order[j][:]) })
 	}
-	e.acts[activist] = &tracker{key: activist, w: w, state: StateInactive, seen: map[uint32]struct{}{}}
+	t := &tracker{key: activist, w: w, state: StateInactive, seen: map[uint32]struct{}{}, via: uniq}
+	t.offline = !e.reachable(t)
+	t.offlineAt = e.now
+	e.acts[activist] = t
 	return nil
+}
+
+// reachable reports whether at least one of t's transports is up.
+func (e *Engine) reachable(t *tracker) bool {
+	for _, k := range t.via {
+		if e.up[k] {
+			return true
+		}
+	}
+	return false
+}
+
+// silentOn reports whether nothing has arrived on any of t's transports
+// for at least span before now.
+func (e *Engine) silentOn(t *tracker, now time.Time, span time.Duration) bool {
+	for _, k := range t.via {
+		if now.Sub(e.heard[k]) < span {
+			return false
+		}
+	}
+	return true
 }
 
 // State returns an activist's current state.
@@ -219,8 +296,40 @@ func (e *Engine) Deadline(activist [32]byte) (time.Time, bool) {
 	return t.missAt, true
 }
 
-// Online reports whether the engine believes the guardian is online.
-func (e *Engine) Online() bool { return e.online }
+// Up reports whether the engine believes transport k is usable.
+func (e *Engine) Up(k transport.Kind) bool { return e.up[k] }
+
+// Online reports whether every supported transport is up.
+func (e *Engine) Online() bool {
+	for _, k := range transport.Supported {
+		if !e.up[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// ActivistSaysSafe reports whether the activist signed an all-clear after
+// their alarm reached Level 1. It never ends the alarm on its own (#30).
+func (e *Engine) ActivistSaysSafe(activist [32]byte) bool {
+	t, ok := e.acts[activist]
+	return ok && t.activistSaysSafe
+}
+
+// StandDown ends an activist's alarm because k distinct guardians signed
+// all-clears after checking on the activist by voice or video. The engine
+// does not count guardian all-clears itself: internal/confirm does that
+// (#11, #30), and the caller calls StandDown once it reports the threshold.
+func (e *Engine) StandDown(now time.Time, activist [32]byte) []Notice {
+	out := e.Tick(now)
+	t, ok := e.acts[activist]
+	if !ok || t.state == StateInactive || t.state == StateCleared {
+		return out
+	}
+	t.state, t.massHold, t.activistSaysSafe = StateCleared, false, false
+	return append(out, Notice{Kind: NoticeCleared, Activist: t.key, At: e.now,
+		Reason: "guardians stood down after checking on the activist"})
+}
 
 // Senders returns the keys of every watched activist, for message.Open.
 func (e *Engine) Senders() [][32]byte {
@@ -244,19 +353,20 @@ func (e *Engine) Tick(now time.Time) []Notice {
 			t.last = t.w.Start
 			e.setDeadline(t, t.w.Start)
 			t.state = StateWaiting
-			if !e.online {
+			if t.offline {
 				t.resume, t.state = StateWaiting, StatePaused
 			}
 			out = append(out, Notice{Kind: NoticeStarted, Activist: k, At: now, Deadline: t.missAt})
 		}
 	}
-	if !e.online {
-		return out // clock paused
-	}
 
-	// Release mass-silence holds that ran out.
+	// Release mass-silence holds that ran out. An activist whose
+	// transports are all down is paused, not held, so is skipped.
 	for _, k := range e.order {
 		t := e.acts[k]
+		if t.offline {
+			continue
+		}
 		if t.massHold && !now.Before(t.missAt) {
 			t.massHold = false
 			t.state = StateMissed
@@ -269,7 +379,7 @@ func (e *Engine) Tick(now time.Time) []Notice {
 	var firing []*tracker
 	for _, k := range e.order {
 		t := e.acts[k]
-		if t.state != StateWaiting && t.state != StateReminder {
+		if t.offline || (t.state != StateWaiting && t.state != StateReminder) {
 			continue
 		}
 		if !t.reminded && t.w.Reminder > 0 && !now.Before(t.due().Add(-t.w.Reminder)) {
@@ -282,14 +392,15 @@ func (e *Engine) Tick(now time.Time) []Notice {
 		}
 	}
 
-	// Many activists silent at once, and nobody heard from at all: this
-	// may be a shutdown the probe has not seen, or a mass arrest. Hold
-	// for at most ReturnWindow and tell the guardians to check by hand.
-	if e.cfg.MassSilence > 0 && len(firing) >= e.cfg.MassSilence && now.Sub(e.lastAny) >= e.cfg.MassSpan {
+	// Many activists silent at once, and nobody heard from on any of
+	// their transports: this may be a shutdown the probe has not seen, or
+	// a mass arrest. Hold for at most ReturnWindow and tell the guardians
+	// to check by hand.
+	if e.cfg.MassSilence > 0 && len(firing) >= e.cfg.MassSilence {
 		var recent []*tracker
 		for _, t := range firing {
 			// One delay per check-in cycle: a hold uses the return window.
-			if now.Sub(t.missAt) < e.cfg.MassSpan && !t.returnGranted {
+			if now.Sub(t.missAt) < e.cfg.MassSpan && !t.returnGranted && e.silentOn(t, now, e.cfg.MassSpan) {
 				recent = append(recent, t)
 			}
 		}
@@ -303,7 +414,7 @@ func (e *Engine) Tick(now time.Time) []Notice {
 			}
 			firing = firing[:0]
 			for _, t := range e.trackersIn(StateWaiting, StateReminder) {
-				if !now.Before(t.missAt) {
+				if !t.offline && !now.Before(t.missAt) {
 					firing = append(firing, t)
 				}
 			}
@@ -318,22 +429,36 @@ func (e *Engine) Tick(now time.Time) []Notice {
 	return out
 }
 
-// SetOnline records a connectivity change seen by the probe at time now.
-// Going offline pauses every running deadline. Coming back resumes them:
-// a deadline that fell inside the outage gets ReturnWindow from now; any
-// other deadline moves on by the length of the outage. Each check-in
-// cycle gets the return window at most once.
+// SetOnline sets every supported transport up or down at once. It is the
+// whole-network switch: a guardian with no connection at all.
 func (e *Engine) SetOnline(now time.Time, online bool) []Notice {
-	if online == e.online {
+	var out []Notice
+	for _, k := range transport.Supported {
+		out = append(out, e.SetTransport(now, k, online)...)
+	}
+	return out
+}
+
+// SetTransport records a connectivity change for one transport seen by
+// the probe at time now. An activist pauses when every transport they use
+// is down, and resumes when one of them returns: a deadline that fell
+// inside the outage gets ReturnWindow from now; any other deadline moves
+// on by the length of the outage. Each check-in cycle gets the return
+// window at most once.
+func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice {
+	if !transport.IsSupported(k) || e.up[k] == up {
 		return e.Tick(now)
 	}
 	var out []Notice
-	if !online {
+	if !up {
 		out = e.Tick(now) // settle anything already due before pausing
-		e.online = false
-		e.offlineAt = e.now
-		for _, k := range e.order {
-			t := e.acts[k]
+		e.up[k] = false
+		for _, a := range e.order {
+			t := e.acts[a]
+			if t.offline || e.reachable(t) {
+				continue
+			}
+			t.offline, t.offlineAt = true, e.now
 			if t.massHold {
 				// The probe now confirms a shutdown: the hold becomes an
 				// ordinary pause that has already used its return window.
@@ -342,7 +467,8 @@ func (e *Engine) SetOnline(now time.Time, online bool) []Notice {
 			}
 			if t.state == StateWaiting || t.state == StateReminder {
 				t.resume, t.state = t.state, StatePaused
-				out = append(out, Notice{Kind: NoticePaused, Activist: k, At: e.now, Deadline: t.missAt})
+				out = append(out, Notice{Kind: NoticePaused, Activist: a, At: e.now, Deadline: t.missAt,
+					Reason: "all of this activist's transports are down"})
 			}
 		}
 		return out
@@ -352,10 +478,14 @@ func (e *Engine) SetOnline(now time.Time, online bool) []Notice {
 		now = e.now
 	}
 	e.now = now
-	e.online = true
-	outage := now.Sub(e.offlineAt)
-	for _, k := range e.order {
-		t := e.acts[k]
+	e.up[k] = true
+	for _, a := range e.order {
+		t := e.acts[a]
+		if !t.offline || !e.reachable(t) {
+			continue
+		}
+		t.offline = false
+		outage := now.Sub(t.offlineAt)
 		if t.state != StatePaused || t.massHold {
 			continue
 		}
@@ -369,17 +499,23 @@ func (e *Engine) SetOnline(now time.Time, online bool) []Notice {
 		if t.state == StateReminder && now.Before(t.due().Add(-t.w.Reminder)) {
 			t.state, t.reminded = StateWaiting, false
 		}
-		out = append(out, Notice{Kind: NoticeResumed, Activist: k, At: now, Deadline: t.missAt})
+		out = append(out, Notice{Kind: NoticeResumed, Activist: a, At: now, Deadline: t.missAt,
+			Reason: k.String() + " is back"})
 	}
 	return append(out, e.Tick(now)...)
 }
 
 // Observe takes an opened, verified message (message.Open has already
-// checked the signature, sender and time) and returns what it changes.
-// Messages from keys not being watched are ignored, as are replays of a
-// (signer, seq) pair already seen. Guardian kinds (missed, confirm) and
-// going-dark are handled by later stages (#10, #11).
-func (e *Engine) Observe(now time.Time, ev message.Event) []Notice {
+// checked the signature, sender and time) and the transport it arrived on,
+// and returns what it changes. Messages from keys not being watched are
+// ignored, as are replays of a (signer, seq) pair already seen. Guardian
+// kinds (missed, confirm) and going-dark are handled by later stages
+// (#10, #11).
+//
+// The message proves only its own transport: it releases mass-silence
+// holds just for activists who use that transport. A message tagged
+// transport.Unknown proves nothing about any network.
+func (e *Engine) Observe(now time.Time, via transport.Kind, ev message.Event) []Notice {
 	out := e.Tick(now)
 	t, ok := e.acts[ev.Signer]
 	if !ok {
@@ -389,16 +525,19 @@ func (e *Engine) Observe(now time.Time, ev message.Event) []Notice {
 		return out
 	}
 	t.seen[ev.Seq] = struct{}{}
-	e.lastAny = e.now
 
-	// A message from anyone proves the network works: release holds.
+	// A message from anyone proves its transport works: release holds for
+	// activists who use that transport, and only them.
+	if transport.IsSupported(via) {
+		e.heard[via] = e.now
+	}
 	for _, k := range e.order {
 		h := e.acts[k]
-		if h.massHold && k != ev.Signer {
+		if h.massHold && k != ev.Signer && transport.IsSupported(via) && h.uses(via) {
 			h.massHold = false
 			h.state = StateMissed
 			out = append(out, Notice{Kind: NoticeMissed, Activist: k, At: e.now, Deadline: h.missAt,
-				Reason: "others are getting through, this activist is still silent"})
+				Reason: "others are getting through on " + via.String() + ", this activist is still silent"})
 		}
 	}
 
@@ -415,8 +554,19 @@ func (e *Engine) Observe(now time.Time, ev message.Event) []Notice {
 		out = append(out, e.checkIn(t, ev)...)
 
 	case message.KindAllClear:
-		if t.state != StateInactive {
-			t.state, t.massHold = StateCleared, false
+		// #30: a captor can force the activist to unlock with the real PIN.
+		// From Level 1 up (missed, alarm, or a mass-silence hold on a
+		// missed deadline) the activist's all-clear is recorded and shown,
+		// but ends nothing: only k guardians can stand down (StandDown).
+		// Before Level 1 it still clears, as a check-in would.
+		switch {
+		case t.state == StateInactive, t.state == StateCleared:
+		case t.state == StateMissed, t.state == StateAlarm, t.massHold:
+			t.activistSaysSafe = true
+			out = append(out, Notice{Kind: NoticeActivistSafe, Activist: t.key, At: e.now, EventTime: ev.CreatedAt,
+				Reason: "the activist says they are safe; this does not end the alarm: guardians must check by voice or video and stand down together"})
+		default:
+			t.state = StateCleared
 			out = append(out, Notice{Kind: NoticeCleared, Activist: t.key, At: e.now, EventTime: ev.CreatedAt,
 				Reason: "all clear from the activist"})
 		}
@@ -458,7 +608,7 @@ func (e *Engine) checkIn(t *tracker, ev message.Event) []Notice {
 		}
 		out = append(out, Notice{Kind: NoticeRecovered, Activist: t.key, At: e.now, EventTime: at, Deadline: t.missAt, Reason: reason})
 	}
-	if e.online && t.state != StatePaused && !e.now.Before(t.missAt) {
+	if !t.offline && t.state != StatePaused && !e.now.Before(t.missAt) {
 		// A very old check-in can leave the next deadline already passed.
 		t.state = StateMissed
 		out = append(out, Notice{Kind: NoticeMissed, Activist: t.key, At: e.now, Deadline: t.missAt,
