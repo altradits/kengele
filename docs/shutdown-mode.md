@@ -30,6 +30,10 @@ A shutdown rarely takes everything down at once. In Tanzania in 2025 the interne
 | Nostr back first | Resumes | Resumes |
 | SMS check-in from someone else during a mass-silence hold | Hold ends | Hold continues |
 
+### A stuck pause re-alerts
+
+An offline pause never ends on its own: if the probe's "down" signal sticks, the clock would stay frozen and silence would mean nothing forever. So while an activist stays offline-paused, the watcher re-alerts every 24 hours (`bado imesimama / still paused: clock paused since …, deadline …`). Mass-silence and going-dark holds already end on their own, so they never re-alert.
+
 ### An activist's all-clear does not end an alarm
 
 A captor can force the activist to unlock with the real PIN. So once an alarm reaches Level 1 (a missed check-in, a panic or a duress check-in), the activist's own all-clear is shown to guardians as "the activist says they are safe" but ends nothing. Only the guardians stand the alarm down together, after a voice or video check ([guardian-confirmation.md](guardian-confirmation.md), #30). Before Level 1, while a check-in is only due or in its grace period, the activist's own all-clear still ends the watch.

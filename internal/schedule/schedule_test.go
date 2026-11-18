@@ -743,6 +743,108 @@ func TestMixedTransports(t *testing.T) {
 	}
 }
 
+// Still-paused re-alerts: an offline pause never ends on its own, so Tick
+// re-alerts every StillPausedEvery (default 24h) while one holds. Made-up
+// data only, like the rest of this file.
+func TestStillPaused(t *testing.T) {
+	both := []transport.Kind{transport.Nostr, transport.SMS}
+	cases := []tcase{
+		{
+			name:     "offline pause re-alerts every 24 hours by default",
+			steps:    []step{tick(0), offline(60), tick(1000), tick(1500), tick(2940)},
+			notices:  []string{"started/0", "paused/0", "still-paused/0", "still-paused/0"},
+			want:     []want{{0, StatePaused, 105}},
+			contains: []string{"bado imesimama / still paused", "2026-01-15T11:00:00Z", "2026-01-15T11:45:00Z"},
+		},
+		{
+			name:    "short interval re-alerts on cadence from the last notice",
+			cfg:     Config{StillPausedEvery: time.Hour},
+			steps:   []step{tick(0), offline(60), tick(119), tick(120), tick(179), tick(180)},
+			notices: []string{"started/0", "paused/0", "still-paused/0", "still-paused/0"},
+			want:    []want{{0, StatePaused, 105}},
+		},
+		{
+			name: "each activist re-alerts on their own pause time",
+			n:    2,
+			cfg:  Config{StillPausedEvery: time.Hour},
+			via:  map[int][]transport.Kind{0: both},
+			steps: []step{
+				tick(0), down(60, transport.Nostr), down(70, transport.SMS),
+				tick(120), tick(130),
+			},
+			notices: []string{"started/0", "started/1", "paused/1", "paused/0", "still-paused/1", "still-paused/0"},
+			want:    []want{{0, StatePaused, 105}, {1, StatePaused, 105}},
+		},
+		{
+			name:    "the cadence resets when the pause lifts",
+			cfg:     Config{StillPausedEvery: time.Hour},
+			steps:   []step{tick(0), offline(60), tick(120), online(130), offline(140), tick(199), tick(200)},
+			notices: []string{"started/0", "paused/0", "still-paused/0", "resumed/0", "paused/0", "still-paused/0"},
+			want:    []want{{0, StatePaused, 250}},
+		},
+		{
+			name:    "negative interval disables the re-alert",
+			cfg:     Config{StillPausedEvery: -1},
+			steps:   []step{tick(0), offline(60), tick(1500), tick(3000)},
+			notices: []string{"started/0", "paused/0"},
+			want:    []want{{0, StatePaused, 105}},
+		},
+		{
+			name:    "a going-dark hold alone never re-alerts",
+			steps:   []step{tick(0), gdark(30, 0, 30, 1, 48*time.Hour, 60*time.Minute), tick(1470), tick(2000), tick(2910)},
+			notices: []string{"started/0", "going-dark/0", "dark-expired/0"},
+			want:    []want{{0, StateWaiting, 2970}},
+		},
+		{
+			name:  "a mass-silence hold never re-alerts",
+			n:     3,
+			cfg:   Config{StillPausedEvery: 30 * time.Minute},
+			steps: []step{tick(0), tick(105), tick(135), tick(200)},
+			notices: []string{
+				"started/0", "started/1", "started/2",
+				"reminder/0", "reminder/1", "reminder/2",
+				"mass-silence/0", "mass-silence/1", "mass-silence/2",
+			},
+			want: []want{{0, StatePaused, 225}, {1, StatePaused, 225}, {2, StatePaused, 225}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) { run(t, c) })
+	}
+}
+
+func TestStillPausedNotice(t *testing.T) {
+	e := New(Config{}, t0)
+	if e.cfg.StillPausedEvery != 24*time.Hour {
+		t.Fatalf("default StillPausedEvery %v, want 24h", e.cfg.StillPausedEvery)
+	}
+	if d := New(Config{StillPausedEvery: -1}, t0).cfg.StillPausedEvery; d != -1 {
+		t.Fatalf("negative StillPausedEvery became %v, want -1 (disabled)", d)
+	}
+	if err := e.Watch(key(0), window()); err != nil {
+		t.Fatal(err)
+	}
+	e.Tick(t0)
+	e.SetOnline(at(60), false)
+	ns := e.Tick(at(1500))
+	if len(ns) != 1 || ns[0].Kind != NoticeStillPaused {
+		t.Fatalf("notices %+v, want one still-paused", ns)
+	}
+	n := ns[0]
+	if n.Kind.String() != "still-paused" {
+		t.Errorf("kind %q, want still-paused", n.Kind)
+	}
+	if !n.At.Equal(at(1500)) {
+		t.Errorf("at %v, want +1500m", n.At.Sub(t0))
+	}
+	if !n.Deadline.Equal(at(105)) {
+		t.Errorf("deadline +%v, want +105m", n.Deadline.Sub(t0))
+	}
+	if n.Activist != key(0) {
+		t.Errorf("activist %v, want key(0)", n.Activist)
+	}
+}
+
 func TestStandDown(t *testing.T) {
 	e := New(Config{}, t0)
 	if err := e.Watch(key(0), window()); err != nil {

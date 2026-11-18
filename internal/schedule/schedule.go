@@ -74,9 +74,10 @@ const (
 	NoticeActivistSafe                   // the activist signed an all-clear at Level 1+: shown, ends nothing
 	NoticeGoingDark                      // the activist declared going dark: clock paused until expiry
 	NoticeDarkExpired                    // the dark period ended: clock running, return window in force
+	NoticeStillPaused                    // an offline pause is still holding: re-alert
 )
 
-var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence", "activist-says-safe", "going-dark", "dark-expired"}
+var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence", "activist-says-safe", "going-dark", "dark-expired", "still-paused"}
 
 func (k NoticeKind) String() string {
 	if int(k) < len(noticeNames) {
@@ -141,13 +142,18 @@ type Config struct {
 	MassSilence int
 	// MassSpan is the span for MassSilence.
 	MassSpan time.Duration
+	// StillPausedEvery is how often Tick re-alerts while an activist
+	// stays offline-paused, so a stuck "down" signal cannot suppress
+	// alarms silently forever. Negative disables the re-alert.
+	StillPausedEvery time.Duration
 }
 
 // Defaults.
 const (
-	DefaultReturnWindow = 2 * time.Hour
-	DefaultMassSilence  = 3
-	DefaultMassSpan     = 15 * time.Minute
+	DefaultReturnWindow     = 2 * time.Hour
+	DefaultMassSilence      = 3
+	DefaultMassSpan         = 15 * time.Minute
+	DefaultStillPausedEvery = 24 * time.Hour
 )
 
 func (c Config) withDefaults() Config {
@@ -159,6 +165,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MassSpan <= 0 {
 		c.MassSpan = DefaultMassSpan
+	}
+	if c.StillPausedEvery == 0 {
+		c.StillPausedEvery = DefaultStillPausedEvery
 	}
 	return c
 }
@@ -187,6 +196,10 @@ type tracker struct {
 	offline bool
 	// offlineAt is when offline last became true.
 	offlineAt time.Time
+	// stillAt is when the last still-paused re-alert fired for this
+	// tracker, or when the current offline pause started if none has
+	// yet. It resets when the pause lifts.
+	stillAt time.Time
 	// activistSaysSafe is set when the activist signed an all-clear after
 	// Level 1 (#30). It is shown to guardians and ends nothing.
 	activistSaysSafe bool
@@ -262,6 +275,9 @@ func (e *Engine) Watch(activist [32]byte, w Window, via ...transport.Kind) error
 	t := &tracker{key: activist, w: w, state: StateInactive, seen: map[uint32]struct{}{}, via: uniq}
 	t.offline = !e.reachable(t)
 	t.offlineAt = e.now
+	if t.offline {
+		t.stillAt = e.now
+	}
 	e.acts[activist] = t
 	return nil
 }
@@ -478,6 +494,30 @@ func (e *Engine) Tick(now time.Time) []Notice {
 		out = append(out, Notice{Kind: NoticeMissed, Activist: t.key, At: now, Deadline: t.missAt,
 			Reason: fmt.Sprintf("no check-in by %s", t.missAt.UTC().Format(time.RFC3339))})
 	}
+
+	// Still-paused re-alerts: an offline pause never ends on its own, so
+	// while one holds, re-alert every StillPausedEvery so a stuck "down"
+	// signal cannot suppress alarms silently forever. Mass-silence and
+	// going-dark holds already end on their own and are excluded.
+	if e.cfg.StillPausedEvery > 0 {
+		for _, k := range e.order {
+			t := e.acts[k]
+			if !t.offline || t.state != StatePaused || t.massHold || t.dark {
+				continue
+			}
+			last := t.stillAt
+			if last.IsZero() {
+				last = t.offlineAt
+			}
+			if now.Before(last.Add(e.cfg.StillPausedEvery)) {
+				continue
+			}
+			t.stillAt = now
+			out = append(out, Notice{Kind: NoticeStillPaused, Activist: k, At: now, Deadline: t.missAt,
+				Reason: fmt.Sprintf("bado imesimama / still paused: clock paused since %s, deadline %s",
+					t.offlineAt.UTC().Format(time.RFC3339), t.missAt.UTC().Format(time.RFC3339))})
+		}
+	}
 	return out
 }
 
@@ -510,7 +550,7 @@ func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice
 			if t.offline || e.reachable(t) {
 				continue
 			}
-			t.offline, t.offlineAt = true, e.now
+			t.offline, t.offlineAt, t.stillAt = true, e.now, e.now
 			if t.massHold {
 				// The probe now confirms a shutdown: the hold becomes an
 				// ordinary pause that has already used its return window.
@@ -537,6 +577,7 @@ func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice
 			continue
 		}
 		t.offline = false
+		t.stillAt = time.Time{}
 		outage := now.Sub(t.offlineAt)
 		if t.state != StatePaused || t.massHold || t.dark {
 			// A mass-silence hold or a going-dark (#10) keeps the
