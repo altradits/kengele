@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/altradits/kengele/internal/message"
+	"github.com/altradits/kengele/internal/transport"
 )
 
 // t0 is the start of every test window: 10:00 on election day.
@@ -29,6 +30,8 @@ const (
 	opOffline
 	opOnline
 	opEvent
+	opDown // one transport down
+	opUp   // one transport up
 )
 
 type step struct {
@@ -38,14 +41,23 @@ type step struct {
 	kind message.Kind
 	sig  int // signed CreatedAt, minutes after t0
 	seq  uint32
+	via  transport.Kind // transport for opEvent (default Nostr), opDown, opUp
 }
 
 func tick(m int) step    { return step{op: opTick, at: m} }
 func offline(m int) step { return step{op: opOffline, at: m} }
 func online(m int) step  { return step{op: opOnline, at: m} }
 func ev(m int, who int, k message.Kind, sig int, seq uint32) step {
-	return step{op: opEvent, at: m, who: who, kind: k, sig: sig, seq: seq}
+	return step{op: opEvent, at: m, who: who, kind: k, sig: sig, seq: seq, via: transport.Nostr}
 }
+
+// evVia is ev with an explicit arrival transport.
+func evVia(m int, via transport.Kind, who int, k message.Kind, sig int, seq uint32) step {
+	return step{op: opEvent, at: m, who: who, kind: k, sig: sig, seq: seq, via: via}
+}
+
+func down(m int, k transport.Kind) step { return step{op: opDown, at: m, via: k} }
+func up(m int, k transport.Kind) step   { return step{op: opUp, at: m, via: k} }
 
 type want struct {
 	who      int
@@ -62,6 +74,9 @@ type tcase struct {
 	notices  []string // "kind/who" in order; nil to skip
 	want     []want
 	contains []string // substrings that must appear in some notice reason
+	// via gives an activist's transports; activists not listed are
+	// Nostr-only, the plan default.
+	via map[int][]transport.Kind
 }
 
 func run(t *testing.T, c tcase) {
@@ -76,7 +91,7 @@ func run(t *testing.T, c tcase) {
 	}
 	e := New(c.cfg, t0.Add(-time.Hour))
 	for i := 0; i < n; i++ {
-		if err := e.Watch(key(i), win()); err != nil {
+		if err := e.Watch(key(i), win(), c.via[i]...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -91,7 +106,11 @@ func run(t *testing.T, c tcase) {
 		case opOnline:
 			got = append(got, e.SetOnline(now, true)...)
 		case opEvent:
-			got = append(got, e.Observe(now, message.Event{Kind: s.kind, CreatedAt: at(s.sig), Seq: s.seq, Signer: key(s.who)})...)
+			got = append(got, e.Observe(now, s.via, message.Event{Kind: s.kind, CreatedAt: at(s.sig), Seq: s.seq, Signer: key(s.who)})...)
+		case opDown:
+			got = append(got, e.SetTransport(now, s.via, false)...)
+		case opUp:
+			got = append(got, e.SetTransport(now, s.via, true)...)
 		}
 	}
 	if c.notices != nil {
@@ -233,7 +252,7 @@ func TestSchedule(t *testing.T) {
 			name: "check-in carried through the outage uses its signed time",
 			steps: []step{
 				tick(0), offline(60),
-				ev(200, 0, message.KindCheckIn, 80, 1), // arrives by SMS at +200, signed at +80
+				ev(200, 0, message.KindCheckIn, 80, 1), // carried through, delivered at +200, signed at +80
 				online(210),                            // +80 deadline is +185: fell in outage -> +330
 				tick(329),
 			},
@@ -277,10 +296,41 @@ func TestSchedule(t *testing.T) {
 			want:    []want{{0, StateCleared, -1}},
 		},
 		{
-			name:    "all clear stands down",
-			steps:   []step{tick(0), tick(106), ev(120, 0, message.KindAllClear, 120, 1), tick(500)},
-			notices: []string{"started/0", "reminder/0", "missed/0", "cleared/0"},
+			// #30: after a missed deadline (Level 1) the activist's own
+			// all-clear is shown but ends nothing; guardians stand down.
+			name:     "all clear after a missed deadline is recorded but does not stand down",
+			steps:    []step{tick(0), tick(106), ev(120, 0, message.KindAllClear, 120, 1), tick(500)},
+			notices:  []string{"started/0", "reminder/0", "missed/0", "activist-says-safe/0"},
+			want:     []want{{0, StateMissed, -1}},
+			contains: []string{"does not end the alarm"},
+		},
+		{
+			name:    "all clear during the grace period still stands down",
+			steps:   []step{tick(0), tick(95), ev(100, 0, message.KindAllClear, 100, 1), tick(500)},
+			notices: []string{"started/0", "reminder/0", "cleared/0"},
 			want:    []want{{0, StateCleared, -1}},
+		},
+		{
+			name:     "all clear after panic keeps the alarm",
+			steps:    []step{tick(0), ev(10, 0, message.KindPanic, 10, 1), ev(20, 0, message.KindAllClear, 20, 2), tick(500)},
+			notices:  []string{"started/0", "alarm/0", "activist-says-safe/0"},
+			want:     []want{{0, StateAlarm, -1}},
+			contains: []string{"guardians must check by voice or video"},
+		},
+		{
+			name:    "all clear after duress keeps the alarm",
+			steps:   []step{tick(0), ev(30, 0, message.KindDuressCheckIn, 30, 1), ev(45, 0, message.KindAllClear, 45, 2), tick(500)},
+			notices: []string{"started/0", "alarm/0", "activist-says-safe/0"},
+			want:    []want{{0, StateAlarm, -1}},
+		},
+		{
+			name: "all clear during a mass-silence hold is recorded and the hold still ends in missed",
+			n:    3,
+			steps: []step{
+				tick(0), tick(105), // held until +225
+				ev(130, 0, message.KindAllClear, 130, 1),
+			},
+			want: []want{{0, StatePaused, 225}, {1, StateMissed, -1}, {2, StateMissed, -1}},
 		},
 		{
 			name:    "window that starts during a shutdown starts paused",
@@ -356,6 +406,217 @@ func TestSchedule(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) { run(t, c) })
+	}
+}
+
+// Mixed-transport shutdowns (#28). Unless a case says otherwise, activist 0
+// uses Nostr and SMS and activist 1 is Nostr-only (the plan default).
+func TestMixedTransports(t *testing.T) {
+	both := []transport.Kind{transport.Nostr, transport.SMS}
+	smsAnd1 := map[int][]transport.Kind{0: both}
+	cases := []tcase{
+		{
+			name:     "Nostr down, SMS up: the SMS activist's clock runs, the Nostr-only one pauses",
+			n:        2,
+			via:      smsAnd1,
+			steps:    []step{tick(0), down(60, transport.Nostr), tick(105)},
+			notices:  []string{"started/0", "started/1", "paused/1", "reminder/0", "missed/0"},
+			want:     []want{{0, StateMissed, 105}, {1, StatePaused, 105}},
+			contains: []string{"all of this activist's transports are down"},
+		},
+		{
+			name: "an SMS check-in during a Nostr outage keeps the SMS activist covered",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), down(60, transport.Nostr),
+				evVia(90, transport.SMS, 0, message.KindCheckIn, 90, 1),
+				tick(150),
+			},
+			want: []want{{0, StateWaiting, 195}, {1, StatePaused, 105}},
+		},
+		{
+			name: "an SMS check-in during a Nostr outage does not lift the hold for Nostr-only activists",
+			n:    4,
+			via:  map[int][]transport.Kind{3: both},
+			steps: []step{
+				tick(0), tick(105), // all four silent, nobody heard: held until +225
+				evVia(130, transport.SMS, 3, message.KindCheckIn, 130, 1), // proves SMS only
+				tick(224),
+			},
+			want: []want{
+				{0, StatePaused, 225}, {1, StatePaused, 225}, {2, StatePaused, 225},
+				{3, StateReminder, 235}, // due +220, reminder from +210
+			},
+		},
+		{
+			name: "the Nostr-only holds still end on time after an SMS check-in",
+			n:    4,
+			via:  map[int][]transport.Kind{3: both},
+			steps: []step{
+				tick(0), tick(105),
+				evVia(130, transport.SMS, 3, message.KindCheckIn, 130, 1),
+				tick(225),
+			},
+			want:     []want{{0, StateMissed, 225}, {1, StateMissed, 225}, {2, StateMissed, 225}, {3, StateReminder, 235}},
+			contains: []string{"still silent after the mass-silence hold ended"},
+		},
+		{
+			name: "an SMS message lifts the hold for other SMS activists",
+			n:    3,
+			via:  map[int][]transport.Kind{0: both, 1: both, 2: both},
+			steps: []step{
+				tick(0), tick(105),
+				evVia(130, transport.SMS, 0, message.KindCheckIn, 130, 1),
+			},
+			want:     []want{{0, StateWaiting, 235}, {1, StateMissed, -1}, {2, StateMissed, -1}},
+			contains: []string{"others are getting through on sms"},
+		},
+		{
+			name: "a Nostr message lifts the hold for everyone on Nostr",
+			n:    4,
+			via:  map[int][]transport.Kind{3: both},
+			steps: []step{
+				tick(0), tick(105),
+				ev(130, 3, message.KindCheckIn, 130, 1),
+			},
+			want:     []want{{0, StateMissed, -1}, {1, StateMissed, -1}, {2, StateMissed, -1}, {3, StateWaiting, 235}},
+			contains: []string{"others are getting through on nostr"},
+		},
+		{
+			name: "a message on an unknown transport proves nothing but still counts as a check-in",
+			n:    3,
+			steps: []step{
+				tick(0), tick(105),
+				evVia(130, transport.Unknown, 0, message.KindCheckIn, 130, 1),
+			},
+			want: []want{{0, StateWaiting, 235}, {1, StatePaused, 225}, {2, StatePaused, 225}},
+		},
+		{
+			name: "both down, SMS back first: only the SMS activist resumes",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), down(60, transport.Nostr), down(70, transport.SMS),
+				up(120, transport.SMS), // +105 fell in the outage: return window -> +240
+				tick(170),
+			},
+			notices:  []string{"started/0", "started/1", "paused/1", "paused/0", "resumed/0"},
+			want:     []want{{0, StateWaiting, 240}, {1, StatePaused, 105}},
+			contains: []string{"sms is back"},
+		},
+		{
+			name: "both down, SMS back first, then Nostr: each resumes when its own transport returns",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), down(60, transport.Nostr), down(70, transport.SMS),
+				up(120, transport.SMS), up(180, transport.Nostr),
+			},
+			notices: []string{"started/0", "started/1", "paused/1", "paused/0", "resumed/0", "resumed/1"},
+			want:    []want{{0, StateWaiting, 240}, {1, StateWaiting, 300}},
+		},
+		{
+			name: "both down, Nostr back first: both resume and SMS returning changes nothing",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), offline(60),
+				up(120, transport.Nostr), up(130, transport.SMS),
+			},
+			notices: []string{"started/0", "started/1", "paused/1", "paused/0", "resumed/0", "resumed/1"},
+			want:    []want{{0, StateWaiting, 240}, {1, StateWaiting, 240}},
+		},
+		{
+			name:  "an SMS outage does not pause a Nostr-only activist",
+			n:     2,
+			via:   smsAnd1,
+			steps: []step{tick(0), down(30, transport.SMS), tick(105)},
+			want:  []want{{0, StateMissed, 105}, {1, StateMissed, 105}},
+		},
+		{
+			name: "short Nostr outage while SMS stays up: the SMS activist's deadline does not move",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), down(30, transport.Nostr), up(50, transport.Nostr), tick(105),
+			},
+			want: []want{{0, StateMissed, 105}, {1, StateReminder, 125}}, // Nostr-only: moved by the 20 min outage
+		},
+		{
+			name:  "a window that starts while only Nostr is down starts running for the SMS activist",
+			n:     2,
+			via:   smsAnd1,
+			steps: []step{down(-10, transport.Nostr), tick(0), tick(105)},
+			want:  []want{{0, StateMissed, 105}, {1, StatePaused, 105}},
+		},
+		{
+			name: "duress by SMS during a Nostr outage raises the alarm",
+			n:    2,
+			via:  smsAnd1,
+			steps: []step{
+				tick(0), down(30, transport.Nostr),
+				evVia(40, transport.SMS, 0, message.KindDuressCheckIn, 40, 1),
+			},
+			want:     []want{{0, StateAlarm, -1}, {1, StatePaused, 105}},
+			contains: []string{"forced"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) { run(t, c) })
+	}
+}
+
+func TestStandDown(t *testing.T) {
+	e := New(Config{}, t0)
+	if err := e.Watch(key(0), window()); err != nil {
+		t.Fatal(err)
+	}
+	e.Tick(t0)
+	e.Observe(at(10), transport.Nostr, message.Event{Kind: message.KindPanic, CreatedAt: at(10), Seq: 1, Signer: key(0)})
+	e.Observe(at(20), transport.Nostr, message.Event{Kind: message.KindAllClear, CreatedAt: at(20), Seq: 2, Signer: key(0)})
+	if s, _ := e.State(key(0)); s != StateAlarm || !e.ActivistSaysSafe(key(0)) {
+		t.Fatalf("after activist all-clear: state %v, says safe %v", s, e.ActivistSaysSafe(key(0)))
+	}
+	ns := e.StandDown(at(40), key(0))
+	if s, _ := e.State(key(0)); s != StateCleared || e.ActivistSaysSafe(key(0)) {
+		t.Fatalf("after stand-down: state %v", s)
+	}
+	if len(ns) != 1 || ns[0].Kind != NoticeCleared || !strings.Contains(ns[0].Reason, "guardians stood down") {
+		t.Errorf("stand-down notices %+v", ns)
+	}
+	if ns := e.StandDown(at(50), key(0)); len(ns) != 0 {
+		t.Errorf("second stand-down raised %+v", ns)
+	}
+	if ns := e.StandDown(at(50), key(9)); len(ns) != 0 {
+		t.Errorf("stand-down for an unknown activist raised %+v", ns)
+	}
+}
+
+func TestEngineTransports(t *testing.T) {
+	e := New(Config{}, t0)
+	if err := e.Watch(key(0), window(), transport.Mesh); err == nil {
+		t.Error("mesh accepted before it is supported")
+	}
+	if err := e.Watch(key(0), window(), transport.Unknown); err == nil {
+		t.Error("unknown transport accepted")
+	}
+	if err := e.Watch(key(0), window(), transport.SMS, transport.SMS, transport.Nostr); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.acts[key(0)].via; len(got) != 2 {
+		t.Errorf("duplicate transports not folded: %v", got)
+	}
+	if !e.Online() || !e.Up(transport.Nostr) || !e.Up(transport.SMS) {
+		t.Error("a new engine should start with every transport up")
+	}
+	e.SetTransport(t0, transport.Mesh, false) // unsupported: ignored
+	if !e.Online() {
+		t.Error("an unsupported transport changed connectivity")
+	}
+	e.SetTransport(t0, transport.SMS, false)
+	if e.Online() || e.Up(transport.SMS) || !e.Up(transport.Nostr) {
+		t.Error("SMS down should leave Nostr up and Online false")
 	}
 }
 

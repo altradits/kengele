@@ -1,6 +1,7 @@
 // Command kengele-watcher is the guardian-side watcher. It follows the
 // activists in an encrypted watch plan and raises the alarm when a
-// check-in is missed, pausing the clock while the guardian is offline.
+// check-in is missed, pausing an activist's clock while every transport
+// that activist uses is down for the guardian.
 //
 // This version has no network transport yet (#8): it runs the deadline
 // engine against a transport that delivers nothing, so it is only useful
@@ -15,11 +16,13 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/altradits/kengele/internal/message"
 	"github.com/altradits/kengele/internal/schedule"
+	"github.com/altradits/kengele/internal/transport"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -38,7 +41,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, `usage:
   kengele-watcher version
   kengele-watcher seal-plan -in plan.json -out plan.kgp
-  kengele-watcher run -plan plan.kgp [-tick 30s] [-offline]
+  kengele-watcher run -plan plan.kgp [-tick 30s] [-offline] [-down nostr,sms]
 
 The plan passphrase is read from `+passEnv+`.`)
 }
@@ -96,9 +99,25 @@ func runCmd(args []string, out io.Writer, pass string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	planPath := fs.String("plan", "", "encrypted plan file")
 	every := fs.Duration("tick", 30*time.Second, "how often to check deadlines")
-	offline := fs.Bool("offline", false, "pretend the guardian is offline (shutdown mode)")
+	offline := fs.Bool("offline", false, "pretend every transport is down (shutdown mode)")
+	downList := fs.String("down", "", "pretend these transports are down, comma separated (nostr, sms)")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	p := staticProbe{}
+	if *offline {
+		for _, k := range transport.Supported {
+			p[k] = true
+		}
+	}
+	if *downList != "" {
+		for _, name := range strings.Split(*downList, ",") {
+			k, err := transport.Parse(strings.TrimSpace(name))
+			if err != nil {
+				return err
+			}
+			p[k] = true
+		}
 	}
 	if *planPath == "" {
 		return errors.New("run needs -plan")
@@ -118,26 +137,34 @@ func runCmd(args []string, out io.Writer, pass string) error {
 	defer stop()
 	ticks := time.NewTicker(*every)
 	defer ticks.Stop()
-	return watch(ctx, plan, ticks.C, time.Now, staticProbe(!*offline), nopTransport{}, out)
+	return watch(ctx, plan, ticks.C, time.Now, p, nopTransport{}, out)
 }
 
-// probe reports whether the guardian can reach the network. The real one
-// checks the relays (#8); this one is fixed.
-type probe interface{ Online() bool }
+// probe reports, per transport, whether the guardian can use it. The real
+// one checks the relays (#8) and the phone's SMS state; this one is fixed.
+type probe interface{ Up(transport.Kind) bool }
 
-type staticProbe bool
+// staticProbe lists the transports that are down; the rest are up.
+type staticProbe map[transport.Kind]bool
 
-func (p staticProbe) Online() bool { return bool(p) }
+func (p staticProbe) Up(k transport.Kind) bool { return !p[k] }
 
-// transport hands over messages that already passed message.Open.
-type transport interface{ Receive() []message.Event }
+// delivery is one message that already passed message.Open, tagged with
+// the transport it arrived on.
+type delivery struct {
+	via transport.Kind
+	ev  message.Event
+}
+
+// receiver hands over deliveries.
+type receiver interface{ Receive() []delivery }
 
 type nopTransport struct{}
 
-func (nopTransport) Receive() []message.Event { return nil }
+func (nopTransport) Receive() []delivery { return nil }
 
 // watch runs the engine until ctx ends. It owns no goroutines.
-func watch(ctx context.Context, plan *schedule.Plan, ticks <-chan time.Time, now func() time.Time, p probe, tr transport, out io.Writer) error {
+func watch(ctx context.Context, plan *schedule.Plan, ticks <-chan time.Time, now func() time.Time, p probe, tr receiver, out io.Writer) error {
 	e := schedule.New(plan.Config(), now())
 	if err := plan.Load(e); err != nil {
 		return err
@@ -161,9 +188,11 @@ func watch(ctx context.Context, plan *schedule.Plan, ticks <-chan time.Time, now
 	}
 	fmt.Fprintf(out, "kengele-watcher %s: watching %d, no transport yet (not for real use)\n", version, len(plan.Activists))
 	step := func(t time.Time) {
-		print(e.SetOnline(t, p.Online()))
-		for _, ev := range tr.Receive() {
-			print(e.Observe(t, ev))
+		for _, k := range transport.Supported {
+			print(e.SetTransport(t, k, p.Up(k)))
+		}
+		for _, d := range tr.Receive() {
+			print(e.Observe(t, d.via, d.ev))
 		}
 	}
 	step(now())
