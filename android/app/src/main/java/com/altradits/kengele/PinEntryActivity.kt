@@ -12,6 +12,7 @@ import com.altradits.kengele.message.KengeleMessage
 import com.altradits.kengele.nostr.DualCheckInSender
 import com.altradits.kengele.nostr.NostrCheckInSender
 import com.altradits.kengele.nostr.NostrStatusStrings
+import com.altradits.kengele.nostr.ShutdownModes
 import com.altradits.kengele.nostr.smsWillSend
 import com.altradits.kengele.sms.SmsBatchKind
 import com.altradits.kengele.sms.SmsNoticeStrings
@@ -80,9 +81,10 @@ class PinEntryActivity : AppCompatActivity() {
                             Toast.makeText(app, getString(rendered.res, *rendered.args), Toast.LENGTH_LONG).show()
                         }
                     },
+                    reachability = ShutdownModes.shared,
                 )
             }
-            if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, false)) {
+            if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, ShutdownModes.shared.shutdownMode)) {
                 Toast.makeText(this, R.string.nostr_nothing_configured, Toast.LENGTH_LONG).show()
             }
             val manager = CheckInManager(
@@ -93,9 +95,10 @@ class PinEntryActivity : AppCompatActivity() {
                         gateway = SystemSmsGateway(applicationContext),
                         scheduler = SystemSmsScheduler(),
                         kindOfBatch = { batchKind },
-                        // TODO: shutdown-mode signal; ordinary check-ins stay
-                        // Nostr-only until it lands.
-                        shutdownMode = { false },
+                        // Live shutdown signal: ordinary check-ins go by
+                        // SMS too while Nostr is unreachable, for
+                        // guardians on the Shutdown-check-ins profile.
+                        shutdownMode = { ShutdownModes.shared.shutdownMode },
                         onNotice = { notice ->
                             Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
                         },

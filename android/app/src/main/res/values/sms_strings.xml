@@ -8,6 +8,7 @@
     <string name="sms_failed_queued">SMS failed. It will retry automatically.</string>
     <string name="sms_no_permission">SMS permission is off, so the SMS fallback cannot send. Turn it on in Settings.</string>
     <string name="sms_invalid_dropped">Message error. SMS not sent.</string>
+    <string name="sms_shutdown_banner">Shutdown mode: Nostr is unreachable, so check-ins also go by SMS.</string>
     <string name="sms_menu">SMS fallback</string>
     <string name="sms_title">SMS fallback</string>
     <string name="sms_guardian_n">Guardian %1$d</string>

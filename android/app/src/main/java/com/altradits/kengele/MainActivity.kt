@@ -12,6 +12,7 @@ import com.altradits.kengele.guardian.InMemoryGuardianStore
 import com.altradits.kengele.nostr.DualCheckInSender
 import com.altradits.kengele.nostr.NostrCheckInSender
 import com.altradits.kengele.nostr.NostrStatusStrings
+import com.altradits.kengele.nostr.ShutdownModes
 import com.altradits.kengele.nostr.smsWillSend
 import com.altradits.kengele.sms.SmsBatchKind
 import com.altradits.kengele.sms.SmsNoticeStrings
@@ -76,10 +77,15 @@ class MainActivity : AppCompatActivity() {
             windowText,
         )
         val relays = AppState.nostr.relays()
-        transport.text = if (relays.isEmpty()) {
+        val base = if (relays.isEmpty()) {
             getString(R.string.nostr_transport_off)
         } else {
             getString(R.string.nostr_transport_on, relays.size, AppState.nostr.minAccepted())
+        }
+        transport.text = if (ShutdownModes.shared.shutdownMode) {
+            base + "\n" + getString(R.string.sms_shutdown_banner)
+        } else {
+            base
         }
     }
 
@@ -122,9 +128,10 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, getString(rendered.res, *rendered.args), Toast.LENGTH_LONG).show()
                     }
                 },
+                reachability = ShutdownModes.shared,
             )
         }
-        if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, false)) {
+        if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, ShutdownModes.shared.shutdownMode)) {
             Toast.makeText(this, R.string.nostr_nothing_configured, Toast.LENGTH_LONG).show()
         }
         val manager = CheckInManager(
@@ -135,9 +142,9 @@ class MainActivity : AppCompatActivity() {
                     gateway = SystemSmsGateway(applicationContext),
                     scheduler = SystemSmsScheduler(),
                     kindOfBatch = { batchKind },
-                    // TODO: shutdown-mode signal; panic is an alarm kind so it
-                    // sends in both modes either way.
-                    shutdownMode = { false },
+                    // Panic is an alarm kind so it sends in both modes
+                    // either way; the live signal keeps this path honest.
+                    shutdownMode = { ShutdownModes.shared.shutdownMode },
                     onNotice = { notice ->
                         Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
                     },

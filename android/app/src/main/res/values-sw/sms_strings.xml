@@ -8,6 +8,7 @@
     <string name="sms_failed_queued">SMS imeshindwa. Itajaribu tena yenyewe.</string>
     <string name="sms_no_permission">Ruhusa ya SMS imezimwa, kwa hivyo SMS mbadala haiwezi kutuma. Iwasha kwenye Mipangilio.</string>
     <string name="sms_invalid_dropped">Hitilafu ya ujumbe. SMS haijatumwa.</string>
+    <string name="sms_shutdown_banner">Hali ya mtandao kukatika: Nostr haipatikani, kwa hivyo ripoti zinatumwa pia kwa SMS.</string>
     <string name="sms_menu">SMS mbadala</string>
     <string name="sms_title">SMS mbadala</string>
     <string name="sms_guardian_n">Mlinzi %1$d</string>

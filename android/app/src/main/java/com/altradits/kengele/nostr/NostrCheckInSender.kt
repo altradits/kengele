@@ -55,6 +55,11 @@ data class NostrSendStatus(
  * activity must post to the UI thread itself. All Android calls sit behind
  * [RelayPublisher] and [SmsScheduler], so JUnit-only tests cover the
  * quorum, queueing and backoff logic.
+ *
+ * Every gift wrap published here — fresh sends and [flush] retries — is
+ * reported to [reachability] as reachable when at least one relay
+ * answered (accepted or refused), so the shutdown-mode signal watches
+ * the same Nostr reachability this sender already sees.
  */
 class NostrCheckInSender(
     private val ownPriv: ByteArray,
@@ -74,6 +79,7 @@ class NostrCheckInSender(
         thread(isDaemon = true, name = "nostr-send") { task() }
     },
     private val onStatus: (NostrSendStatus) -> Unit = {},
+    private val reachability: NostrReachabilitySink? = null,
 ) : CheckInSender {
 
     val relays: List<String> = RelayUrl.normalizeAll(relays)
@@ -104,7 +110,7 @@ class NostrCheckInSender(
         val items = outbox.list()
         var pending = 0
         for (item in items) {
-            publishItem(item)
+            report(publishItem(item))
             if (item.accepted.size >= minAccepted) {
                 outbox.remove(item.event.id)
             } else {
@@ -141,7 +147,7 @@ class NostrCheckInSender(
             }
             attempted++
             val item = OutboxItem(event = event, relays = relays, queuedSecs = clockSecs())
-            publishItem(item)
+            report(publishItem(item))
             worstAccepted = minOf(worstAccepted, item.accepted.size)
             if (item.accepted.size >= minAccepted) {
                 sent++
@@ -163,11 +169,19 @@ class NostrCheckInSender(
         )
     }
 
-    /** Publishes [item] to every relay that has not accepted it yet, in turn. */
-    private fun publishItem(item: OutboxItem) {
+    /**
+     * Publishes [item] to every relay that has not accepted it yet, in
+     * turn. Returns whether any contacted relay answered (accepted or
+     * refused), or null when no relay was contacted: a round that talks
+     * to nobody says nothing about reachability.
+     */
+    private fun publishItem(item: OutboxItem): Boolean? {
         item.attempts++
+        var contacted = false
+        var reachable = false
         for (url in item.relays) {
             if (url in item.accepted) continue
+            contacted = true
             val outcome = try {
                 publish.publish(item.event, url, publishTimeoutMs)
             } catch (e: Exception) {
@@ -175,7 +189,16 @@ class NostrCheckInSender(
                 RelayPublishOutcome.FAILED
             }
             if (outcome == RelayPublishOutcome.ACCEPTED) item.accepted.add(url)
+            // A refusal still proves the relay — and the internet path to
+            // it — is up; only a failure says it is down.
+            if (outcome != RelayPublishOutcome.FAILED) reachable = true
         }
+        return if (contacted) reachable else null
+    }
+
+    /** Reports one publish round to the shutdown-mode signal, if watched. */
+    private fun report(reachable: Boolean?) {
+        if (reachable != null) reachability?.onPublish(reachable)
     }
 
     private fun ensureRetry() {
