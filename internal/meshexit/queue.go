@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -115,6 +116,17 @@ func (q *MemoryQueue) Remove(id string) error {
 	return nil
 }
 
+// get returns a copy of the entry for id, for FileQueue rollback.
+func (q *MemoryQueue) get(id string) (Entry, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	e, ok := q.items[id]
+	if !ok {
+		return Entry{}, false
+	}
+	return cloneEntry(e), true
+}
+
 // FileQueue is a Queue persisted as JSON in one file, so queued datagrams
 // survive a restart. The file holds gift wraps (relay-equivalent data) and
 // is written with mode 0600. It rewrites the whole file per change, which
@@ -126,7 +138,9 @@ type FileQueue struct {
 }
 
 // OpenFileQueue opens the queue at path. A missing or empty file opens as
-// an empty queue; a corrupt one is an error.
+// an empty queue; a corrupt one is an error. If the file exists its mode is
+// tightened to 0600 on a best-effort basis; the next save rewrites it 0600
+// regardless.
 func OpenFileQueue(path string) (*FileQueue, error) {
 	q := &FileQueue{path: path, mem: NewMemoryQueue()}
 	raw, err := os.ReadFile(path)
@@ -136,6 +150,7 @@ func OpenFileQueue(path string) (*FileQueue, error) {
 		}
 		return nil, fmt.Errorf("meshexit: read queue %s: %w", path, err)
 	}
+	_ = os.Chmod(path, 0o600)
 	if len(raw) == 0 {
 		return q, nil
 	}
@@ -155,10 +170,21 @@ func OpenFileQueue(path string) (*FileQueue, error) {
 func (q *FileQueue) Put(e Entry) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	prev, hadPrev := q.mem.get(e.ID)
 	if err := q.mem.Put(e); err != nil {
 		return err
 	}
-	return q.saveLocked()
+	if err := q.saveLocked(); err != nil {
+		// Roll back the in-memory change so a failed save never looks
+		// queued: the next restart would otherwise lose it silently.
+		if hadPrev {
+			_ = q.mem.Put(prev)
+		} else {
+			_ = q.mem.Remove(e.ID)
+		}
+		return err
+	}
+	return nil
 }
 
 // List implements Queue.
@@ -172,12 +198,24 @@ func (q *FileQueue) List() ([]Entry, error) {
 func (q *FileQueue) Remove(id string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	prev, hadPrev := q.mem.get(id)
 	if err := q.mem.Remove(id); err != nil {
 		return err
 	}
-	return q.saveLocked()
+	if err := q.saveLocked(); err != nil {
+		if hadPrev {
+			_ = q.mem.Put(prev)
+		}
+		return err
+	}
+	return nil
 }
 
+// saveLocked rewrites the queue file atomically: the parent directory is
+// created, the new contents are fsynced to a temp file in the same
+// directory, then renamed over the old file. A crash either keeps the old
+// queue or installs the new one, never a half-written file. The file is
+// always 0600: it holds gift wraps, which reveal recipient keys.
 func (q *FileQueue) saveLocked() error {
 	list, err := q.mem.List()
 	if err != nil {
@@ -190,8 +228,48 @@ func (q *FileQueue) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(q.path, raw, 0o600); err != nil {
+	dir := filepath.Dir(q.path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
 	}
+	tmp, err := os.CreateTemp(dir, ".exit-queue-*.tmp")
+	if err != nil {
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	tmpName := tmp.Name()
+	done := false
+	defer func() {
+		if !done {
+			_ = os.Remove(tmpName)
+		}
+	}()
+	if _, err := tmp.Write(raw); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	// CreateTemp already makes 0600; enforce it explicitly in case the
+	// platform widened it.
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	if err := os.Rename(tmpName, q.path); err != nil {
+		return fmt.Errorf("meshexit: write queue %s: %w", q.path, err)
+	}
+	// Fsync the directory so the rename survives a power cut. Best
+	// effort: some filesystems refuse it, and the queue is still correct
+	// without it.
+	if dh, err := os.Open(dir); err == nil {
+		_ = dh.Sync()
+		_ = dh.Close()
+	}
+	done = true
 	return nil
 }

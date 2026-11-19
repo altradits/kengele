@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -74,12 +75,18 @@ type fakeRelay struct {
 	mu     sync.Mutex
 	stored int
 	reject bool
+	delay  time.Duration
 }
 
 func newFakeRelay(t *testing.T) *fakeRelay {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		// Sandboxes that forbid TCP binds fail here; that is
+		// environmental, not a product failure.
+		if strings.Contains(err.Error(), "operation not permitted") {
+			t.Skipf("cannot bind test relay: %v", err)
+		}
 		t.Fatal(err)
 	}
 	r := &fakeRelay{t: t, url: "ws://" + ln.Addr().String()}
@@ -107,8 +114,11 @@ func (r *fakeRelay) handle(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		r.mu.Lock()
-		reject := r.reject
+		reject, delay := r.reject, r.delay
 		r.mu.Unlock()
+		if delay > 0 {
+			time.Sleep(delay)
+		}
 		ev := env.Event
 		okSig, _ := ev.CheckSignature()
 		accept := okSig && ev.ID == ev.GetID() && !reject

@@ -86,7 +86,10 @@ func NewSimulator(cfg SimConfig) *Simulator {
 func (s *Simulator) Receive() <-chan Packet { return s.incoming }
 
 // Inject delivers payload as if a radio node sent it. The payload is
-// copied. Injections after Close are ignored.
+// copied. Injections after Close are ignored. Inject never blocks: if the
+// receiver is more than the buffer (256 packets) behind, the packet is
+// dropped like the radio would drop it, so a flooded test can never wedge
+// Close.
 func (s *Simulator) Inject(from string, payload []byte) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -97,9 +100,17 @@ func (s *Simulator) Inject(from string, payload []byte) {
 	if s.lossEvery > 0 && n%uint64(s.lossEvery) == 0 {
 		return
 	}
-	s.incoming <- Packet{From: from, Payload: append([]byte(nil), payload...), At: time.Now().UTC()}
+	pkt := Packet{From: from, Payload: append([]byte(nil), payload...), At: time.Now().UTC()}
+	select {
+	case s.incoming <- pkt:
+	default:
+		return
+	}
 	if s.dupeEvery > 0 && n%uint64(s.dupeEvery) == 0 {
-		s.incoming <- Packet{From: from, Payload: append([]byte(nil), payload...), At: time.Now().UTC()}
+		select {
+		case s.incoming <- Packet{From: pkt.From, Payload: append([]byte(nil), pkt.Payload...), At: pkt.At}:
+		default:
+		}
 	}
 }
 
@@ -179,6 +190,17 @@ func newFramedMesh(conn io.ReadWriteCloser, from string, mtu int) *framedMesh {
 // Receive implements Mesh.
 func (m *framedMesh) Receive() <-chan Packet { return m.incoming }
 
+// encodeFrame renders one payload as the bytes the gateway shim and the
+// exit exchange: a 2-byte big-endian length followed by the payload. It is
+// the single definition of the wire format; Send uses it and the
+// simulator-vs-gateway cross-tests assert its exact bytes.
+func encodeFrame(payload []byte) []byte {
+	frame := make([]byte, 2+len(payload))
+	binary.BigEndian.PutUint16(frame, uint16(len(payload)))
+	copy(frame[2:], payload)
+	return frame
+}
+
 // Send implements Mesh.
 func (m *framedMesh) Send(ctx context.Context, payload []byte) error {
 	if len(payload) == 0 {
@@ -187,9 +209,7 @@ func (m *framedMesh) Send(ctx context.Context, payload []byte) error {
 	if len(payload) > m.mtu {
 		return fmt.Errorf("%w: %d > %d", ErrPacketTooLarge, len(payload), m.mtu)
 	}
-	frame := make([]byte, 2+len(payload))
-	binary.BigEndian.PutUint16(frame, uint16(len(payload)))
-	copy(frame[2:], payload)
+	frame := encodeFrame(payload)
 	m.wmu.Lock()
 	defer m.wmu.Unlock()
 	select {
@@ -200,10 +220,18 @@ func (m *framedMesh) Send(ctx context.Context, payload []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	// A cancelled context must stop a stuck TCP write. Serial device
+	// files have no deadlines, so they only get the check above.
+	if nc, ok := m.conn.(net.Conn); ok {
+		if deadline, ok := ctx.Deadline(); ok {
+			_ = nc.SetWriteDeadline(deadline)
+			defer nc.SetWriteDeadline(time.Time{})
+		}
+	}
 	for len(frame) > 0 {
 		n, err := m.conn.Write(frame)
 		if err != nil {
-			return err
+			return fmt.Errorf("meshexit: send %s: %w", m.from, err)
 		}
 		frame = frame[n:]
 	}
@@ -246,7 +274,7 @@ func (m *framedMesh) readLoop() {
 
 // DialTCP connects to a Meshtastic gateway at addr ("host:port").
 func DialTCP(ctx context.Context, addr string) (Mesh, error) {
-	d := &net.Dialer{Timeout: 10 * time.Second}
+	d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
 	c, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("meshexit: dial %s: %w", addr, err)

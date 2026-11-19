@@ -119,11 +119,15 @@ func (e *Exit) Run(ctx context.Context, out io.Writer) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			before := e.Stats().Forwarded
 			pending, err := e.Flush(ctx)
 			if err != nil {
 				e.logf(out, "queue retry failed / kujaribu foleni kumeshindikana (%v)", err)
-			} else if pending > 0 {
-				e.logf(out, "queue: %d still waiting / foleni: %d bado zinasubiri", pending, pending)
+			} else {
+				e.logFlushed(out, before)
+				if pending > 0 {
+					e.logf(out, "queue: %d still waiting / foleni: %d bado zinasubiri", pending, pending)
+				}
 			}
 		case p, ok := <-ch:
 			if !ok {
@@ -135,7 +139,9 @@ func (e *Exit) Run(ctx context.Context, out io.Writer) error {
 }
 
 // Flush retries every queued datagram once and returns how many are still
-// waiting.
+// waiting. Entries that are no longer valid gift wraps (a hand-edited queue
+// file, or stricter validation than when they were queued) are dropped
+// instead of retried forever.
 func (e *Exit) Flush(ctx context.Context) (int, error) {
 	items, err := e.q.List()
 	if err != nil {
@@ -145,6 +151,13 @@ func (e *Exit) Flush(ctx context.Context) (int, error) {
 	for i := range items {
 		it := items[i]
 		if err := e.pub.Publish(ctx, it.Data); err != nil {
+			if errors.Is(err, ErrNotGiftWrap) {
+				if rerr := e.q.Remove(it.ID); rerr != nil {
+					return pending, rerr
+				}
+				e.bumpDropped()
+				continue
+			}
 			pending++
 			it.Attempts++
 			if perr := e.q.Put(it); perr != nil {
@@ -219,6 +232,14 @@ func (e *Exit) handleDatagram(ctx context.Context, datagram []byte, from string,
 		return
 	}
 	if err := e.pub.Publish(ctx, datagram); err != nil {
+		// Defensive: the datagram validated above, so a publisher that
+		// still calls it invalid disagrees with the exit. Drop rather
+		// than queue what can never send.
+		if errors.Is(err, ErrNotGiftWrap) {
+			e.logf(out, "dropped invalid message / ujumbe batili umetupwa (%s)", short)
+			e.bumpDropped()
+			return
+		}
 		entry := Entry{
 			ID:         id,
 			Data:       append([]byte(nil), datagram...),
@@ -242,8 +263,20 @@ func (e *Exit) handleDatagram(ctx context.Context, datagram []byte, from string,
 	e.stats.Forwarded++
 	e.mu.Unlock()
 	// A success means Nostr is back: take the queue with it.
-	if pending, _ := e.Flush(ctx); pending > 0 {
+	before := e.Stats().Forwarded
+	pending, _ := e.Flush(ctx)
+	e.logFlushed(out, before)
+	if pending > 0 {
 		e.logf(out, "queue: %d still waiting / foleni: %d bado zinasubiri", pending, pending)
+	}
+}
+
+// logFlushed reports how many queued datagrams a Flush just forwarded, if
+// any, so an uplink that returns is visible in the log.
+func (e *Exit) logFlushed(out io.Writer, before uint64) {
+	if after := e.Stats().Forwarded; after > before {
+		n := after - before
+		e.logf(out, "flushed %d to Nostr / %d zimetumwa kwa Nostr kutoka foleni", n, n)
 	}
 }
 

@@ -2,10 +2,12 @@ package meshexit
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -29,9 +31,10 @@ type Publisher interface {
 }
 
 // ValidateDatagram checks that datagram is a signed Nostr gift wrap (kind
-// 1059) addressed to someone: valid JSON, a matching id, a valid signature
-// and a recipient tag. It never decrypts anything: the exit has no keys.
-// Anything failing a check is dropped silently by the caller.
+// 1059) addressed to someone: valid JSON, a matching id, a valid signature,
+// non-empty ciphertext and a recipient tag holding a 32-byte pubkey in hex.
+// It never decrypts anything: the exit has no keys. Anything failing a
+// check is dropped silently by the caller.
 func ValidateDatagram(datagram []byte) (gn.Event, error) {
 	var ev gn.Event
 	if len(datagram) == 0 || len(datagram) > MaxDatagram {
@@ -50,6 +53,9 @@ func ValidateDatagram(datagram []byte) (gn.Event, error) {
 	if !ok {
 		return ev, ErrNotGiftWrap
 	}
+	if ev.Content == "" {
+		return ev, ErrNotGiftWrap
+	}
 	if !hasPTag(ev) {
 		return ev, ErrNotGiftWrap
 	}
@@ -58,11 +64,21 @@ func ValidateDatagram(datagram []byte) (gn.Event, error) {
 
 func hasPTag(ev gn.Event) bool {
 	for _, t := range ev.Tags {
-		if len(t) >= 2 && t[0] == "p" && t[1] != "" {
+		if len(t) >= 2 && t[0] == "p" && isPubHex(t[1]) {
 			return true
 		}
 	}
 	return false
+}
+
+// isPubHex reports whether s is a 32-byte pubkey in hex, the only thing a
+// gift wrap may address.
+func isPubHex(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	b, err := hex.DecodeString(s)
+	return err == nil && len(b) == 32
 }
 
 // RelayPublisher publishes datagrams to Nostr relays. It holds no keys: the
@@ -102,23 +118,26 @@ func (p *RelayPublisher) Publish(ctx context.Context, datagram []byte) error {
 	if len(p.Relays) == 0 {
 		return ErrNoRelays
 	}
+	if need := p.minAccepted(); need > len(p.Relays) {
+		// Misconfigured quorum can never succeed; fail without dialling
+		// so a bad -min-accepted does not look like dead relays. The
+		// exit still queues the message, so fixing the flag and
+		// restarting with the same queue file recovers it.
+		return fmt.Errorf("%w: need %d but only %d relays", ErrNotAccepted, need, len(p.Relays))
+	}
+	var accepted atomic.Int32
 	var wg sync.WaitGroup
-	accepted := make([]bool, len(p.Relays))
-	for i, u := range p.Relays {
+	for _, u := range p.Relays {
 		wg.Add(1)
-		go func(i int, u string) {
+		go func(u string) {
 			defer wg.Done()
-			accepted[i] = publishOne(ctx, u, ev, p.timeout())
-		}(i, u)
+			if publishOne(ctx, u, ev, p.timeout()) {
+				accepted.Add(1)
+			}
+		}(u)
 	}
 	wg.Wait()
-	n := 0
-	for _, ok := range accepted {
-		if ok {
-			n++
-		}
-	}
-	if n < p.minAccepted() {
+	if n := int(accepted.Load()); n < p.minAccepted() {
 		return fmt.Errorf("%w: %d of %d relays", ErrNotAccepted, n, len(p.Relays))
 	}
 	return nil

@@ -153,12 +153,13 @@ func TestExitRetriesQueueOnTick(t *testing.T) {
 	sim := NewSimulator(SimConfig{})
 	defer sim.Close()
 	pub := &stubPublisher{}
-	ex, _, _ := runExit(t, sim, pub, Config{RetryInterval: 20 * time.Millisecond})
+	ex, log, _ := runExit(t, sim, pub, Config{RetryInterval: 20 * time.Millisecond})
 
 	feed(t, sim, giftWrapDatagram(t), 0x333333)
 	waitFor(t, "queue", func() bool { return ex.Stats().Queued == 1 })
 	pub.setOnline(true)
 	waitFor(t, "tick retry", func() bool { return pub.count() == 1 })
+	waitFor(t, "flush line", func() bool { return strings.Contains(log.String(), "kutoka foleni") })
 }
 
 func TestExitDropsInvalid(t *testing.T) {

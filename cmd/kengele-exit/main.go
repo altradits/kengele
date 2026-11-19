@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -83,7 +84,12 @@ func runCmd(args []string, out io.Writer) error {
 	if *minAccepted < 1 || *minAccepted > len(relayList) {
 		return errors.New("bad -min-accepted / -min-accepted si sahihi (1..relays)")
 	}
-	mesh, err := openMesh(*meshSpec)
+	// The exit loop and the mesh redialler log to the same output from
+	// different goroutines; serialise them so lines never interleave.
+	lw := &lockedWriter{w: out}
+	mesh, err := openMesh(*meshSpec, func(s string) {
+		fmt.Fprintf(lw, "%s %s\n", time.Now().UTC().Format(time.RFC3339), s)
+	})
 	if err != nil {
 		return err
 	}
@@ -108,10 +114,22 @@ func runCmd(args []string, out io.Writer) error {
 	fmt.Fprintf(out, "kengele-exit %s: mesh %s, %d relays (not for real use / si kwa matumizi halisi)\n", version, *meshSpec, len(relayList))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	return ex.Run(ctx, out)
+	return ex.Run(ctx, lw)
 }
 
-func openMesh(spec string) (meshexit.Mesh, error) {
+// lockedWriter serialises concurrent log writes to one output.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
+}
+
+func openMesh(spec string, log func(string)) (meshexit.Mesh, error) {
 	if spec == "sim" {
 		return meshexit.NewSimulator(meshexit.SimConfig{}), nil
 	}
@@ -121,13 +139,27 @@ func openMesh(spec string) (meshexit.Mesh, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return meshexit.DialTCP(ctx, addr)
+		first, err := meshexit.DialTCP(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+		redial := func() (meshexit.Mesh, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			return meshexit.DialTCP(ctx, addr)
+		}
+		return meshexit.NewReconnectingMesh(first, redial, meshexit.ReconnectConfig{Log: log}), nil
 	}
 	if path, ok := strings.CutPrefix(spec, "serial:"); ok {
 		if path == "" {
 			return nil, errors.New("bad -mesh serial path / njia ya -mesh si sahihi")
 		}
-		return meshexit.OpenSerial(path)
+		first, err := meshexit.OpenSerial(path)
+		if err != nil {
+			return nil, err
+		}
+		redial := func() (meshexit.Mesh, error) { return meshexit.OpenSerial(path) }
+		return meshexit.NewReconnectingMesh(first, redial, meshexit.ReconnectConfig{Log: log}), nil
 	}
 	return nil, fmt.Errorf("bad -mesh %q, want sim, tcp://host:port or serial:/path / -mesh %q si sahihi", spec, spec)
 }
