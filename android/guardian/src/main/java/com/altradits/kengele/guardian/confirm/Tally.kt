@@ -46,11 +46,33 @@ data class Outcome(
      */
     val activistSaysSafe: Boolean = false,
     /**
-     * The rebuilt sealing key K (release and found-safe only). Opening the
-     * sealed alert with K (XChaCha20-Poly1305) and publishing are follow-ups;
-     * see the module README note in [Tally]. Never log or store it.
+     * The opened alert and the key that signs the public notes (release and
+     * found-safe only, when the tally holds the sealed kit). The caller owns
+     * this copy of the key: wipe it with [KitOpen.wipe] after use; never log
+     * or store it.
+     */
+    val alert: Alert? = null,
+    val alertKey: ByteArray? = null,
+    /**
+     * The rebuilt sealing key K (release and found-safe only, only when the
+     * sealed kit is not enrolled and the tally cannot open the alert). Never
+     * log or store it.
      */
     val key: ByteArray? = null,
+)
+
+/**
+ * A release waiting to be published: the opened alert, the key that signs
+ * the public notes, and which note is due. Held in memory only, never
+ * persisted; wiped once the found-safe note is published.
+ */
+data class PendingRelease(
+    val action: Action,
+    val epoch: Long,
+    val confirmed: Int,
+    val alert: Alert,
+    /** A copy of the key; wipe it with [KitOpen.wipe] after use. */
+    val alertKey: ByteArray,
 )
 
 /** What a guardian's app shows before its user may send an all-clear. */
@@ -65,6 +87,28 @@ data class ClearStatus(
     /** Always true for an open alarm: verify by voice or video first. */
     val verifyFirst: Boolean = true,
 )
+
+/**
+ * The persistable tally counts: epochs, votes, clears and the
+ * spent/released flags. Shares persist (they are secret pieces, useless
+ * below the threshold); the sealing key, the alert and the alert key never
+ * do. See [TallyStore] for the versioned encoding.
+ */
+data class TallySnapshot(
+    val cur: Long,
+    val releasedEpoch: Long,
+    val spent: Boolean,
+    val releaseConfirmed: Int,
+    val epochs: Map<Long, EpochSnapshot>,
+)
+
+data class EpochSnapshot(
+    val confirms: Map<String, VoteSnapshot>,
+    val clears: Map<String, Long>,
+    val activistClearSecs: Long?,
+)
+
+data class VoteSnapshot(val atSecs: Long, val shareHex: String)
 
 /** Threshold progress for confirmations, for the guardian's screen. */
 data class ConfirmStatus(
@@ -88,12 +132,15 @@ data class ConfirmStatus(
  * and shown but never counted towards k. Only k guardians together end an
  * alarm. Android-free so plain JUnit covers it; safe for concurrent use.
  *
- * Release scope in this round: with k fresh shares [Tally] rebuilds the
- * sealing key K via [Shamir] and returns it on the [Outcome]. Decrypting the
- * sealed alert and alert key with K (XChaCha20-Poly1305 kit open) and
- * publishing the public notes are the follow-up; without the authenticated
- * open this port also cannot yet try every k-sized group to skip a bad share,
- * so it combines the first k fresh shares in x-coordinate order.
+ * When [sealedKit] holds the enrolled sealed alert, a release rebuilds
+ * the sealing key K from k fresh shares and opens the kit
+ * (XChaCha20-Poly1305), exactly like Go's `tryRelease`: every k-sized share
+ * group is tried, so one bad share neither forges a release (a wrong K
+ * fails the authenticated open) nor blocks one (another group still opens).
+ * The opened alert and alert key come back on the [Outcome] and stay in
+ * memory as the [PendingRelease] until the found-safe note is published.
+ * Without the sealed kit the tally falls back to combining the first k
+ * fresh shares and returns K on the [Outcome], unauthenticated.
  */
 class Tally(
     activist: ByteArray,
@@ -101,6 +148,7 @@ class Tally(
     private val self: ByteArray,
     private val threshold: Int,
     private val ttlSecs: Long = DEFAULT_CONFIRM_TTL_SECS,
+    private val sealedKit: SealedKit? = null,
 ) {
     private val activistHex = Hex.toHex(activist.require32("activist"))
     private val guardianHex = guardians.map { Hex.toHex(it.require32("guardian")) }
@@ -120,11 +168,25 @@ class Tally(
     private var spent = false
     private var releaseKey: ByteArray? = null
     private var releaseConfirmed = 0
+    private var pending: PendingRelease? = null
 
     init {
         Enrollment.checkEnrollment(activist, guardians, threshold)
         require(enrolled.contains(selfHex)) { "this guardian is not enrolled" }
         require(ttlSecs > 0) { "ttl must be positive" }
+        sealedKit?.let { kit ->
+            try {
+                KitOpen.checkKit(kit)
+            } catch (e: KitException) {
+                throw IllegalArgumentException(e.message)
+            }
+            require(kit.activistHex.lowercase() == activistHex) { "sealed kit is for a different activist" }
+            require(kit.guardiansHex.map { it.lowercase() } == guardianHex) {
+                "sealed kit names different guardians or a different order"
+            }
+            require(kit.threshold == threshold) { "sealed kit has a different threshold" }
+            require(kit.guardiansHex[kit.index].lowercase() == selfHex) { "sealed kit index is not this guardian" }
+        }
     }
 
     /** The number of the current alarm for this activist. */
@@ -235,19 +297,78 @@ class Tally(
     }
 
     private fun tryRelease(epoch: Long, nowSecs: Long): Outcome {
+        val kit = sealedKit
+        return if (kit != null) tryReleaseWithKit(kit, epoch, nowSecs) else tryReleaseLegacy(epoch, nowSecs)
+    }
+
+    /**
+     * Rebuilds the sealing key from k fresh shares and opens the sealed kit,
+     * mirroring Go's `tryRelease`: every k-sized group is tried, the rebuilt
+     * K is wiped after each attempt, and a group whose shares do not combine
+     * or open is skipped, never an error. A bad share from a misbehaving
+     * guardian fails the authenticated open, so it can delay a release until
+     * another honest guardian confirms but can neither forge nor block one.
+     */
+    private fun tryReleaseWithKit(kit: SealedKit, epoch: Long, nowSecs: Long): Outcome {
         val st = state(epoch)
         for ((g, v) in st.confirms.toMap()) {
             if (!fresh(v.atSecs, nowSecs)) st.confirms.remove(g) // expired: no longer counts
         }
         val freshShares = st.confirms.values.map { it.share }
         if (freshShares.size < threshold) return Outcome(epoch = epoch)
-        // Deterministic order; the authenticated kit open that lets the Go
-        // side try every k-sized group is the follow-up (see class note).
+        var out: Outcome? = null
+        eachCombination(freshShares.size, threshold) { idx ->
+            val parts = idx.map { freshShares[it] }
+            val key = try {
+                Shamir.combine(parts)
+            } catch (e: ShamirException) {
+                return@eachCombination true // next group
+            }
+            val opened = try {
+                KitOpen.open(kit, key)
+            } catch (e: KitException) {
+                KitOpen.wipe(key)
+                return@eachCombination true // next group
+            }
+            KitOpen.wipe(key)
+            releasedEpoch = epoch
+            spent = true
+            releaseConfirmed = freshShares.size
+            pending = PendingRelease(Action.RELEASE, epoch, freshShares.size, opened.alert, opened.alertKey.copyOf())
+            if (epoch > cur) cur = epoch
+            out = Outcome(
+                action = Action.RELEASE,
+                epoch = epoch,
+                confirmed = freshShares.size,
+                alert = opened.alert,
+                alertKey = opened.alertKey,
+            )
+            false
+        }
+        return out ?: Outcome(epoch = epoch)
+    }
+
+    /**
+     * The fallback without an enrolled sealed kit: combines the first k
+     * fresh shares in x-coordinate order and returns K unauthenticated. A bad
+     * share here rebuilds the wrong key, so this path needs the sealed alert
+     * enrolled to become trustworthy.
+     */
+    private fun tryReleaseLegacy(epoch: Long, nowSecs: Long): Outcome {
+        val st = state(epoch)
+        for ((g, v) in st.confirms.toMap()) {
+            if (!fresh(v.atSecs, nowSecs)) st.confirms.remove(g) // expired: no longer counts
+        }
+        val freshShares = st.confirms.values.map { it.share }
+        if (freshShares.size < threshold) return Outcome(epoch = epoch)
         val ordered = freshShares.sortedBy { it.last().toInt() and 0xFF }.take(threshold)
         val key = try {
             Shamir.combine(ordered)
         } catch (e: ShamirException) {
-            throw TallyException(IgnoreReason.BAD_BODY, e.message ?: "bad share")
+            // Shares that do not combine are not an ignore: the vote stays
+            // counted and a later confirmation retries the release, like Go.
+            // Throwing here used to strand the vote counted-but-unsaved.
+            return Outcome(epoch = epoch)
         }
         releasedEpoch = epoch
         spent = true
@@ -260,6 +381,23 @@ class Tally(
             confirmed = freshShares.size,
             key = key,
         )
+    }
+
+    /**
+     * Calls [f] with every k-sized subset of 0..n-1 until [f] returns false.
+     * Mirrors Go's `combinations`; n is at most 10, so this is small.
+     */
+    private fun eachCombination(n: Int, k: Int, f: (IntArray) -> Boolean) {
+        val idx = IntArray(k)
+        fun rec(start: Int, depth: Int): Boolean {
+            if (depth == k) return f(idx)
+            for (i in start..n - (k - depth)) {
+                idx[depth] = i
+                if (!rec(i + 1, depth + 1)) return false
+            }
+            return true
+        }
+        rec(0, 0)
     }
 
     private fun allClear(event: KengeleMessage.Event, signerHex: String, nowSecs: Long): Outcome {
@@ -303,19 +441,149 @@ class Tally(
         return end(c.epoch)
     }
 
+    /** Whether a release is waiting to be published. */
+    @Synchronized
+    fun hasPendingRelease(): Boolean = pending != null
+
+    /**
+     * The release waiting to be published, or null when there is none. The
+     * returned key is a copy: wipe it with [KitOpen.wipe] after use.
+     */
+    @Synchronized
+    fun pendingRelease(): PendingRelease? = pending?.copy(alertKey = pending!!.alertKey.copyOf())
+
+    /**
+     * Drops the pending release and wipes its key. Call it once the
+     * found-safe note is published (or the kit is replaced). It also prunes
+     * the released alarm's kept shares (see [end]).
+     */
+    @Synchronized
+    fun clearPendingRelease() {
+        pending?.let { KitOpen.wipe(it.alertKey) }
+        pending = null
+        if (releasedEpoch != 0L && releasedEpoch < cur) byEpoch.remove(releasedEpoch)
+    }
+
+    /** The persistable counts; keys and the alert never leave memory. */
+    @Synchronized
+    fun snapshot(): TallySnapshot = TallySnapshot(
+        cur = cur,
+        releasedEpoch = releasedEpoch,
+        spent = spent,
+        releaseConfirmed = releaseConfirmed,
+        epochs = byEpoch.mapValues { (_, st) ->
+            EpochSnapshot(
+                confirms = st.confirms.mapValues { (_, v) -> VoteSnapshot(v.atSecs, Hex.toHex(v.share)) },
+                clears = st.clears.toMap(),
+                activistClearSecs = st.activistClearSecs,
+            )
+        },
+    )
+
+    /**
+     * Restores counts saved with [snapshot], e.g. after a restart. When the
+     * saved state had released and this tally holds the sealed kit, the
+     * pending release is re-derived by re-opening the kit from the saved
+     * shares: restoring an already-made release replays no vote, so expiry
+     * is not re-checked for that step. Throws [IllegalArgumentException] for
+     * a corrupt snapshot; the caller then starts fresh.
+     */
+    @Synchronized
+    fun restore(snap: TallySnapshot) {
+        require(snap.cur >= 1) { "bad snapshot epoch" }
+        require(snap.releasedEpoch >= 0) { "bad snapshot release" }
+        val states = mutableMapOf<Long, EpochState>()
+        for ((ep, es) in snap.epochs) {
+            require(ep >= 1) { "bad snapshot epoch" }
+            val st = EpochState()
+            for ((g, v) in es.confirms) {
+                val share = try {
+                    Hex.fromHex(v.shareHex)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("bad snapshot share")
+                }
+                require(share.size == ConfirmBodies.SHARE_SIZE) { "bad snapshot share" }
+                st.confirms[g] = Vote(v.atSecs, share)
+            }
+            st.clears.putAll(es.clears)
+            st.activistClearSecs = es.activistClearSecs
+            states[ep] = st
+        }
+        byEpoch.clear()
+        byEpoch.putAll(states)
+        cur = snap.cur
+        releasedEpoch = snap.releasedEpoch
+        spent = snap.spent
+        releaseConfirmed = snap.releaseConfirmed
+        pending?.let { KitOpen.wipe(it.alertKey) }
+        pending = null
+        releaseKey = null
+        reopenReleased()
+    }
+
+    /**
+     * Rebuilds the in-memory pending release after [restore] from the saved
+     * shares, trying every k-sized group like [tryReleaseWithKit]. When it
+     * fails the flags stay as saved but there is nothing to publish with.
+     */
+    private fun reopenReleased() {
+        val kit = sealedKit ?: return
+        if (releasedEpoch == 0L) return
+        val st = byEpoch[releasedEpoch] ?: return
+        val shares = st.confirms.values.map { it.share }
+        if (shares.size < threshold) return
+        eachCombination(shares.size, threshold) { idx ->
+            val parts = idx.map { shares[it] }
+            val key = try {
+                Shamir.combine(parts)
+            } catch (e: ShamirException) {
+                return@eachCombination true
+            }
+            val opened = try {
+                KitOpen.open(kit, key)
+            } catch (e: KitException) {
+                KitOpen.wipe(key)
+                return@eachCombination true
+            }
+            KitOpen.wipe(key)
+            val action = if (releasedEpoch < cur) Action.FOUND_SAFE else Action.RELEASE
+            pending = PendingRelease(action, releasedEpoch, releaseConfirmed, opened.alert, opened.alertKey.copyOf())
+            KitOpen.wipe(opened.alertKey)
+            false
+        }
+    }
+
     private fun end(epoch: Long): Outcome {
         val out = if (releasedEpoch == epoch) {
-            Outcome(
-                action = Action.FOUND_SAFE,
-                epoch = epoch,
-                confirmed = releaseConfirmed,
-                key = releaseKey?.copyOf(),
-            )
+            val p = pending
+            when {
+                p != null -> {
+                    pending = p.copy(action = Action.FOUND_SAFE)
+                    Outcome(
+                        action = Action.FOUND_SAFE,
+                        epoch = epoch,
+                        confirmed = p.confirmed,
+                        alert = p.alert,
+                        alertKey = p.alertKey.copyOf(),
+                    )
+                }
+                releaseKey != null -> Outcome(
+                    action = Action.FOUND_SAFE,
+                    epoch = epoch,
+                    confirmed = releaseConfirmed,
+                    key = releaseKey?.copyOf(),
+                )
+                else -> Outcome(action = Action.FOUND_SAFE, epoch = epoch, confirmed = releaseConfirmed)
+            }
         } else {
             Outcome(action = Action.STAND_DOWN, epoch = epoch)
         }
         cur = epoch + 1
-        byEpoch.keys.toList().forEach { if (it < cur) byEpoch.remove(it) }
+        // A found-safe note still needs its shares after a restart (the key
+        // is re-derived from them), so the released alarm's votes stay until
+        // clearPendingRelease; past votes never count again (stale).
+        val keep = if (out.action == Action.FOUND_SAFE) releasedEpoch else -1
+        byEpoch.keys.toList().forEach { if (it < cur && it != keep) byEpoch.remove(it) }
         return out
     }
 

@@ -6,6 +6,7 @@
     <string name="menu_inbox">Kikasha cha tahadhari</string>
     <string name="menu_confirm">Thibitisha tahadhari</string>
     <string name="menu_all_clear">Hali ni salama</string>
+    <string name="menu_publish">Tangaza tahadhari</string>
     <string name="menu_settings">Mipangilio ya relay</string>
 
     <string name="transport_note">Tahadhari hufika kupitia relay zako za Nostr zikiweshwa, au kama maandishi yaliyonakiliwa. Hakuna kinachotoka kwenye simu chenyewe.</string>
@@ -71,7 +72,30 @@
     <string name="nostr_sent_all">Zote %1$d zimefika kwenye relay.</string>
     <string name="nostr_sent_partial">%1$d kati ya %2$d zimefika; zilizobaki zitajaribu tena.</string>
 
+    <string name="release_title">Tangaza tahadhari</string>
+    <string name="release_found_safe_title">Tangaza ujumbe wa salama</string>
+    <string name="release_explainer">Walinzi wamethibitisha. Hii ndiyo tahadhari ambayo mwanaharakati aliandika, imefunguliwa kwa sehemu zao. Iangalie, kisha itangaze mara moja.</string>
+    <string name="release_safe_explainer">Walinzi wameripoti salama baada ya tahadhari kutangazwa. Ujumbe huu unaeleza kila mtu kuwa mwanaharakati amepatikana salama.</string>
+    <string name="release_confirmed_line">Imethibitishwa na walinzi %1$d · Tahadhari %2$d</string>
+    <string name="release_alert_pub_label">Ufunguo wa tahadhari (waandishi huhakiki ujumbe kwa ufunguo huu):</string>
+    <string name="release_note_label">Ujumbe wa umma:</string>
+    <string name="release_publish">Tangaza</string>
+    <string name="release_confirm_title">Uitangaze tahadhari hii?</string>
+    <string name="release_confirm_message">Hii inatuma tahadhari kwenye relay zako za Nostr ili kila mtu aione. Haiwezi kutenduliwa.</string>
+    <string name="release_confirm_safe_title">Uutangaze ujumbe huu wa salama?</string>
+    <string name="release_confirm_safe_message">Hii inaeleza kila mtu aliyeona tahadhari kuwa mwanaharakati amepatikana salama. Haiwezi kutenduliwa.</string>
+    <string name="release_published">Imetangazwa: imekubaliwa na relay %1$d kati ya %2$d. Ujumbe:</string>
+    <string name="release_failed">Hakuna relay iliyokubali. Angalia Mipangilio na ujaribu tena.</string>
+    <string name="release_no_relays">Hakuna relay — ziweke kwenye Mipangilio kwanza.</string>
+    <string name="release_nothing">Hakuna cha kutangaza.</string>
+    <string name="release_needs_kit">Sajili tahadhari iliyofungwa kwanza: bila hiyo simu hii haiwezi kufungua tangazo.</string>
+    <string name="alert_pub_hint">Ufunguo wa tahadhari, herufi 64 za heksi (unahitajika kutangaza)</string>
+    <string name="ciphertext_hint">Tahadhari iliyofungwa, heksi (inahitajika kutangaza)</string>
+    <string name="invalid_alert_pub">Ufunguo huo wa tahadhari si sahihi.</string>
+    <string name="invalid_ciphertext">Tahadhari hiyo iliyofungwa si heksi sahihi.</string>
+
     <string name="need_enrollment">Sajili kifurushi kwanza.</string>
+    <string name="cancel">Ghairi</string>
     <string name="done">Sawa</string>
     <string name="unknown_error">Kuna tatizo.</string>
 </resources>

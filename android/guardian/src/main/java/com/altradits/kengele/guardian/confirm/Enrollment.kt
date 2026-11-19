@@ -37,6 +37,23 @@ object Enrollment {
         return Hex.fromHex(hexShare)
     }
 
+    /**
+     * Validates the sealed alert ciphertext: even-length hex of at least the
+     * 24-byte nonce plus the 16-byte tag. Returns it lowercased.
+     */
+    fun checkCiphertext(hexCiphertext: String): String {
+        require(hexCiphertext.length % 2 == 0 && hexCiphertext.length >= MIN_CIPHERTEXT_HEX) {
+            "sealed alert is too short"
+        }
+        require(hexCiphertext.length <= MAX_CIPHERTEXT_HEX) { "sealed alert is too long" }
+        require(HEX_ANY.matches(hexCiphertext)) { "sealed alert must be hex" }
+        return hexCiphertext.lowercase()
+    }
+
+    private val HEX_ANY = Regex("^[0-9a-fA-F]*$")
+    private const val MIN_CIPHERTEXT_HEX = (24 + 16) * 2
+    private const val MAX_CIPHERTEXT_HEX = 8192 * 2
+
     /** Validates the whole kit: distinct guardians, none the activist, k in range. */
     fun checkEnrollment(activist: ByteArray, guardians: List<ByteArray>, threshold: Int) {
         require(guardians.size in MIN_GUARDIANS..MAX_GUARDIANS) {

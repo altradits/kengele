@@ -56,20 +56,64 @@ internal object ChaCha20 {
      * Encrypts/decrypts [data] in place semantics (returns a new array):
      * keystream with counter starting at 0, XORed over the input.
      */
-    fun xor(key: ByteArray, nonce: ByteArray, data: ByteArray): ByteArray {
+    fun xor(key: ByteArray, nonce: ByteArray, data: ByteArray): ByteArray =
+        xorFromCounter(key, nonce, 0, data)
+
+    /**
+     * One 64-byte keystream block for [counter], exposed for the
+     * ChaCha20-Poly1305 AEAD ([XChaCha20Poly1305]).
+     */
+    fun blockBytes(key: ByteArray, counter: Int, nonce: ByteArray): ByteArray {
+        require(key.size == 32) { "ChaCha20 key must be 32 bytes" }
+        require(nonce.size == 12) { "ChaCha20 nonce must be 12 bytes" }
+        return ByteArray(64).also { block(key, counter, nonce, it, 0) }
+    }
+
+    /** [xor] with the keystream starting at [counter] instead of 0. */
+    fun xorFromCounter(key: ByteArray, nonce: ByteArray, counter: Int, data: ByteArray): ByteArray {
         require(key.size == 32) { "ChaCha20 key must be 32 bytes" }
         require(nonce.size == 12) { "ChaCha20 nonce must be 12 bytes" }
         val out = ByteArray(data.size)
         val ks = ByteArray(64)
-        var counter = 0
+        var c = counter
         var off = 0
         while (off < data.size) {
-            block(key, counter, nonce, ks, 0)
+            block(key, c, nonce, ks, 0)
             val take = minOf(64, data.size - off)
             for (i in 0 until take) out[off + i] = (data[off + i].toInt() xor ks[i].toInt()).toByte()
             off += take
-            counter++
+            c++
         }
+        return out
+    }
+
+    /**
+     * HChaCha20 (the XChaCha step): mixes [key] with a 16-byte nonce into the
+     * 32-byte subkey, serializing state words 0-3 and 12-15 little-endian.
+     */
+    fun hChaCha20(key: ByteArray, nonce16: ByteArray): ByteArray {
+        require(key.size == 32) { "HChaCha20 key must be 32 bytes" }
+        require(nonce16.size == 16) { "HChaCha20 nonce must be 16 bytes" }
+        val s = IntArray(16)
+        s[0] = 0x61707865
+        s[1] = 0x3320646e
+        s[2] = 0x79622d32
+        s[3] = 0x6b206574
+        for (i in 0 until 8) s[4 + i] = loadLe(key, i * 4)
+        for (i in 0 until 4) s[12 + i] = loadLe(nonce16, i * 4)
+        repeat(10) {
+            quarterRound(s, 0, 4, 8, 12)
+            quarterRound(s, 1, 5, 9, 13)
+            quarterRound(s, 2, 6, 10, 14)
+            quarterRound(s, 3, 7, 11, 15)
+            quarterRound(s, 0, 5, 10, 15)
+            quarterRound(s, 1, 6, 11, 12)
+            quarterRound(s, 2, 7, 8, 13)
+            quarterRound(s, 3, 4, 9, 14)
+        }
+        val out = ByteArray(32)
+        for (i in 0 until 4) storeLe(s[i], out, i * 4)
+        for (i in 0 until 4) storeLe(s[12 + i], out, 16 + i * 4)
         return out
     }
 }

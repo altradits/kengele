@@ -1,0 +1,151 @@
+{
+  "generator": "internal/confirm NewKits + Note with fixed made-up keys (tmpvecgen, deleted after use)",
+  "kits": [
+    {
+      "name": "kit-2of3",
+      "version": 1,
+      "activist_hex": "d6dfd1521ebbb39d88a498f3bb640ac1328b4f561305cf133f2eae0cbe96f8cd",
+      "alert_pub_hex": "966ce2eec71088e927fc38defb26e6f135d80c884c21e5018669c13b875d69cb",
+      "guardians_hex": [
+        "0ba9c6ec570c8a3071d80f55355c1780d88d74f70b63b079490ced12eeb72f02",
+        "6b7c7ba7a99ad723b3531b99c8415676359baa3f8510f376fbe6d258f397c8c8",
+        "bf7afc604d3afb0ccb0a0d7598abb6857feda62a64f021bdeb4d7533a3c233d1"
+      ],
+      "threshold": 2,
+      "index": 0,
+      "ciphertext_hex": "28a17dd4dd757e18de4052b46c3f064d17a2bb3ab32ddeed380de33309f77dc43e297f76c02877ba6633a395393cafe6515db1f92f14aff6ff687c545270fe4e4326d5ba20861a00a22a7fc277fa6dc02414fc336b783c9a59facf96249f466fbace2889cd89163ebbe137a568f750a5b357448f1be20048f88ab01e1e6cf6b58f9a149d519276342f1ddc512c2c2a2beb5993ecc037cacce5440695d3a87360ec0cb47db809c625777c4e729102496b51e61ec10988b6a040f1a171f0cf2143f80dfa27b9a3cc01867b2bcb57e9e26d60f34fef473e46074cb8ded5ce5f929910a837bb74ef10730594d8e7e0fbf3b1d81345616ed858189a34ca10194c18c5955317ff3c2dcf056403e7590591355607f1d4b34c49a78602d4e5e3227240521b6c73bdefe7af",
+      "shares_hex": [
+        "7b66ee95d9805ac6a8cbfd8e6c3da07abf4b9b38880998f5f80e5755d44d0af333",
+        "cabb2d5159d0f956f81803585f28b25026094baf10e98f4c301854c7856446dd54",
+        "030b0ae9be9c5f03b48df28facd8ddabc92ae0651c8fa2dc70d66a4f2aa140874a"
+      ],
+      "alert": {
+        "name": "Zawadi M.",
+        "photo": "https://example.org/zawadi.jpg",
+        "lawyer": "Wakili J. Otieno +254 700 000 001",
+        "text": "Tafadhali sambaza ujumbe huu. Please share widely."
+      },
+      "alert_key_hex": "5ebfa807c5d25f76f6d83b6a9db62c8124542aea2bad6c7c3e73fe18cfcea803",
+      "sealing_key_hex": "1b453ea2f23e5ecb163df1dd65bec46780910ed296f6598658ee341a4b33056a"
+    },
+    {
+      "name": "kit-3of5",
+      "version": 1,
+      "activist_hex": "315121639b54c71ce7e5f12467738d731045321e5de2d6f1c38790d4388eeef8",
+      "alert_pub_hex": "0bd5b8d0b3742fd0d40eaacf45312be764836f93226f468b92793312e3d6a786",
+      "guardians_hex": [
+        "3487215ec6edf7f6b49a1279afeef7d0c4fa4c155858063eba081918deb27fa9",
+        "c58eb8a715fbe9153978f7d388f72d14b3a054e763c42b04f112fae15f51b0c2",
+        "4658cb9a0d1701600d87e527826944f56f9e009d5dacf66a4abeff9878a092e1",
+        "de88d13a888289961a6ab1c62790f4f0a4fe70656cf8467b1bf1d050ab12f3af",
+        "4c0622389686cfa3f29073d2cf6aea499dca2c65e6415c941021e2256fccc0af"
+      ],
+      "threshold": 3,
+      "index": 0,
+      "ciphertext_hex": "fe9e88d8bae1c547d1b97e41404c0c6946d6d661e00b84c34bbf9d4df43ae3872360ff41e64c45465d7d11e64db74f9893a03e1edd6f8dc44ff2b97b62ad88d59f3e9d872ce371f06d29844450eefd7a0d6082f86e969cd6d69ebd202330d41524f03ba1f8a44d1cf5cfeea3b925be0ea70c12517e8997a969395e714d54b08f0aae5dd0653b2c33102bb050aedf86715e535be863a1aec861971da6e288f984c9af28935dd239afddfbc35090934da39dee980a1e1fe59c8facf832b4c51a0ffc52",
+      "shares_hex": [
+        "354fb8fc47e0741dac2910d0f55a387da2d35e7525b684bbd2da2066696c09fb73",
+        "408c2ad1ac02d8da8d5538e73c9069ad0f3c67e1969444602c9210197899affcd9",
+        "4e9d3cac6803cb2c7676cfcac71e7d2009ed312129c2d41203bcdf9eb1599c5de5",
+        "288eede9147aa57e090b7273fdf92dfbfd6d14cdb7ceb17af77318a19387177ac1",
+        "355059cfb59ca6d3a5c257195ee2993b56e7477ecc39816f80f18026e4fca0c67b"
+      ],
+      "alert": {
+        "name": "Baraka N.",
+        "lawyer": "Wakili A. Diallo +254 700 000 002"
+      },
+      "alert_key_hex": "62188b84da6f18368d53b720f9ef71932e1b14e307453068586b1d6fe466d67b",
+      "sealing_key_hex": "e7181870543585aa77654a1cbffd37ab4d87b40099c89b6e038438880847a3e7"
+    }
+  ],
+  "notes": [
+    {
+      "name": "alert",
+      "action": "release",
+      "epoch": 1,
+      "confirmed": 2,
+      "last_checkin": 1773117000,
+      "place": "Kisumu law courts",
+      "alert": {
+        "name": "Zawadi M.",
+        "photo": "https://example.org/zawadi.jpg",
+        "lawyer": "Wakili J. Otieno +254 700 000 001",
+        "text": "Tafadhali sambaza ujumbe huu. Please share widely."
+      },
+      "alert_id": "",
+      "now": 1773135000,
+      "content": "KENGELE: TAHADHARI / ALERT\n\nZawadi M. hajasikika tangu / has not been heard from since 2026-03-10 04:30 UTC.\nMahali pa mwisho (aliandika) / Last place (typed by them): Kisumu law courts\nWakili / Lawyer: Wakili J. Otieno +254 700 000 001\nPicha / Photo: https://example.org/zawadi.jpg\n\nTafadhali sambaza ujumbe huu. Please share widely.\n\nImethibitishwa na walinzi 2 / Confirmed by 2 of the guardians they chose. Check this note is signed by the alert key on their profile. #kengele",
+      "tags": [
+        [
+          "t",
+          "kengele"
+        ],
+        [
+          "kengele",
+          "alert",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "alert-no-status",
+      "action": "release",
+      "epoch": 2,
+      "confirmed": 3,
+      "last_checkin": null,
+      "place": "",
+      "alert": {
+        "name": "Zawadi M.",
+        "photo": "https://example.org/zawadi.jpg",
+        "lawyer": "Wakili J. Otieno +254 700 000 001",
+        "text": "Tafadhali sambaza ujumbe huu. Please share widely."
+      },
+      "alert_id": "",
+      "now": 1773138600,
+      "content": "KENGELE: TAHADHARI / ALERT\n\nZawadi M. hajasikika tangu / has not been heard from since their watch window began.\nWakili / Lawyer: Wakili J. Otieno +254 700 000 001\nPicha / Photo: https://example.org/zawadi.jpg\n\nTafadhali sambaza ujumbe huu. Please share widely.\n\nImethibitishwa na walinzi 3 / Confirmed by 3 of the guardians they chose. Check this note is signed by the alert key on their profile. #kengele",
+      "tags": [
+        [
+          "t",
+          "kengele"
+        ],
+        [
+          "kengele",
+          "alert",
+          "2"
+        ]
+      ]
+    },
+    {
+      "name": "found-safe",
+      "action": "found-safe",
+      "epoch": 1,
+      "confirmed": 2,
+      "last_checkin": null,
+      "place": "",
+      "alert": {
+        "name": "Zawadi M.",
+        "photo": "https://example.org/zawadi.jpg",
+        "lawyer": "Wakili J. Otieno +254 700 000 001",
+        "text": "Tafadhali sambaza ujumbe huu. Please share widely."
+      },
+      "alert_id": "b78269fae3fefb62e1e5699f2bb21650d2bf14921a8eab7c142561dbe70235c8",
+      "now": 1773142200,
+      "content": "KENGELE: YUKO SALAMA / FOUND SAFE\n\nZawadi M. amepatikana salama / has been found safe. Asanteni. Thank you to everyone who shared the alert. #kengele",
+      "tags": [
+        [
+          "t",
+          "kengele"
+        ],
+        [
+          "kengele",
+          "found-safe",
+          "1"
+        ],
+        [
+          "e",
+          "b78269fae3fefb62e1e5699f2bb21650d2bf14921a8eab7c142561dbe70235c8"
+        ]
+      ]
+    }
+  ]
+}

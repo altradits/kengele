@@ -9,6 +9,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.altradits.kengele.guardian.confirm.Action
+import com.altradits.kengele.guardian.confirm.KitOpen
+import com.altradits.kengele.guardian.confirm.Outcome
 import com.altradits.kengele.guardian.confirm.TallyException
 import com.altradits.kengele.guardian.nostr.NostrIntake
 import com.altradits.kengele.guardian.nostr.NostrService
@@ -59,8 +61,10 @@ class InboxActivity : AppCompatActivity() {
                     refresh()
                     return@addButton
                 }
+                GuardianState.saveTally()
                 result.text = getString(R.string.inbox_result_count, describe(outcome.action))
                 input.setText("")
+                maybePublish(outcome)
             } catch (e: MessageException) {
                 result.text = getString(R.string.inbox_bad_text)
             } catch (e: IllegalArgumentException) {
@@ -82,11 +86,13 @@ class InboxActivity : AppCompatActivity() {
             val now = GuardianState.nowSecs()
             when (val r = NostrIntake.intake(delivery, t, now)) {
                 is NostrIntake.Result.Counted -> runOnUiThread {
+                    GuardianState.saveTally()
                     result.text = getString(
                         R.string.nostr_from_net,
                         getString(R.string.inbox_result_count, describe(r.outcome.action)),
                     )
                     refresh()
+                    maybePublish(r.outcome)
                 }
                 is NostrIntake.Result.Ignored -> runOnUiThread {
                     result.text = getString(
@@ -132,6 +138,19 @@ class InboxActivity : AppCompatActivity() {
         val c = t.confirmStatus(now)
         val s = t.clearStatus(now)
         return getString(R.string.status_line, c.epoch, c.confirms, c.needed, s.guardianClears)
+    }
+
+    /**
+     * Opens the release screen when an event released the alert or ended the
+     * alarm after a release. The screen reads its own copy from the tally;
+     * this outcome's key copies are wiped.
+     */
+    private fun maybePublish(outcome: Outcome) {
+        if (outcome.action == Action.RELEASE || outcome.action == Action.FOUND_SAFE) {
+            outcome.alertKey?.let { KitOpen.wipe(it) }
+            outcome.key?.let { KitOpen.wipe(it) }
+            startActivity(Intent(this, ReleaseActivity::class.java))
+        }
     }
 
     private fun describe(action: Action): String = when (action) {

@@ -2,6 +2,7 @@ package com.altradits.kengele.guardian.nostr
 
 import com.altradits.kengele.guardian.GuardianState
 import com.altradits.kengele.guardian.confirm.Tally
+import com.altradits.kengele.message.nostr.NostrEvent
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
@@ -104,6 +105,16 @@ object NostrService {
         val queued = results.count { it.queued }
         if (queued > 0) ensureRetry(t)
         return SendSummary(reached = results.size - queued, total = results.size, queued = queued)
+    }
+
+    /**
+     * Broadcasts a signed public note to every configured relay on the
+     * calling thread (call off the UI thread). Returns null when there is no
+     * transport (see [transport]).
+     */
+    fun publishPublic(event: NostrEvent): NostrTransport.PublicResult? {
+        val t = transport() ?: return null
+        return t.publishPublic(event)
     }
 
     /**

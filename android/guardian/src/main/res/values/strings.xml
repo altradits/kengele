@@ -6,6 +6,7 @@
     <string name="menu_inbox">Alarm inbox</string>
     <string name="menu_confirm">Confirm alarm</string>
     <string name="menu_all_clear">All clear</string>
+    <string name="menu_publish">Publish alert</string>
     <string name="menu_settings">Relay settings</string>
 
     <string name="transport_note">Alarms arrive over your Nostr relays when configured, or as pasted text. Nothing leaves the phone on its own.</string>
@@ -71,7 +72,30 @@
     <string name="nostr_sent_all">All %1$d reached the relays.</string>
     <string name="nostr_sent_partial">%1$d of %2$d reached the relays; the rest will retry.</string>
 
+    <string name="release_title">Publish alert</string>
+    <string name="release_found_safe_title">Publish found-safe update</string>
+    <string name="release_explainer">The guardians confirmed. This is the alert the activist wrote, opened with their shares. Check it, then publish it once.</string>
+    <string name="release_safe_explainer">The guardians cleared the alarm after the alert went out. This update tells everyone the activist was found safe.</string>
+    <string name="release_confirmed_line">Confirmed by %1$d guardians · Alarm %2$d</string>
+    <string name="release_alert_pub_label">Alert key (journalists check the note against this key):</string>
+    <string name="release_note_label">The public note:</string>
+    <string name="release_publish">Publish</string>
+    <string name="release_confirm_title">Publish this alert?</string>
+    <string name="release_confirm_message">This sends the alert to your Nostr relays for everyone to see. It cannot be undone.</string>
+    <string name="release_confirm_safe_title">Publish this found-safe update?</string>
+    <string name="release_confirm_safe_message">This tells everyone who saw the alert that the activist was found safe. It cannot be undone.</string>
+    <string name="release_published">Published: accepted by %1$d of %2$d relays. Note:</string>
+    <string name="release_failed">No relay accepted. Check Settings and try again.</string>
+    <string name="release_no_relays">No relays configured — set them in Settings first.</string>
+    <string name="release_nothing">Nothing to publish.</string>
+    <string name="release_needs_kit">Enroll the sealed alert first: without it this phone cannot open the release.</string>
+    <string name="alert_pub_hint">Alert public key, 64 hex characters (needed to publish)</string>
+    <string name="ciphertext_hint">Sealed alert, hex (needed to publish)</string>
+    <string name="invalid_alert_pub">That alert key is not valid.</string>
+    <string name="invalid_ciphertext">That sealed alert is not valid hex.</string>
+
     <string name="need_enrollment">Enroll a kit first.</string>
+    <string name="cancel">Cancel</string>
     <string name="done">Done</string>
     <string name="unknown_error">Something went wrong.</string>
 </resources>

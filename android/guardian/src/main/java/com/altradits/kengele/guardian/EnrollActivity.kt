@@ -59,6 +59,14 @@ class EnrollActivity : AppCompatActivity() {
         val shareInput = Ui.addEdit(column, getString(R.string.share_hint), InputType.TYPE_CLASS_TEXT)
         GuardianState.share()?.let { shareInput.setText(Hex.toHex(it)) }
 
+        val alertPubInput = Ui.addEdit(column, getString(R.string.alert_pub_hint), InputType.TYPE_CLASS_TEXT)
+        GuardianState.alertPub()?.let { alertPubInput.setText(Hex.toHex(it)) }
+
+        val ciphertextInput = Ui.addEdit(column, getString(R.string.ciphertext_hint), InputType.TYPE_CLASS_TEXT)
+        ciphertextInput.isSingleLine = false
+        ciphertextInput.minLines = 3
+        GuardianState.ciphertext()?.let { ciphertextInput.setText(Hex.toHex(it)) }
+
         Ui.addButton(column, getString(R.string.save)) {
             try {
                 val activistHex = Enrollment.checkKey(activistInput.text.toString().trim())
@@ -82,7 +90,28 @@ class EnrollActivity : AppCompatActivity() {
                 if (!keys.contains(Hex.toHex(GuardianState.ownPub()))) {
                     throw IllegalArgumentException("this phone is not enrolled")
                 }
-                GuardianState.enroll(activistHex, keys.toList(), k, shareHex)
+                val alertPubText = alertPubInput.text.toString().trim()
+                val ciphertextText = ciphertextInput.text.toString().trim().replace("\\s".toRegex(), "")
+                val alertPubHex: String?
+                val ciphertextHex: String?
+                if (alertPubText.isEmpty() && ciphertextText.isEmpty()) {
+                    alertPubHex = null
+                    ciphertextHex = null
+                } else {
+                    try {
+                        alertPubHex = Enrollment.checkKey(alertPubText)
+                    } catch (e: IllegalArgumentException) {
+                        Toast.makeText(this, R.string.invalid_alert_pub, Toast.LENGTH_LONG).show()
+                        return@addButton
+                    }
+                    try {
+                        ciphertextHex = Enrollment.checkCiphertext(ciphertextText)
+                    } catch (e: IllegalArgumentException) {
+                        Toast.makeText(this, R.string.invalid_ciphertext, Toast.LENGTH_LONG).show()
+                        return@addButton
+                    }
+                }
+                GuardianState.enroll(activistHex, keys.toList(), k, shareHex, alertPubHex, ciphertextHex)
                 Toast.makeText(this, R.string.enrolled, Toast.LENGTH_LONG).show()
                 finish()
             } catch (e: IllegalArgumentException) {

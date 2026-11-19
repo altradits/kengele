@@ -86,6 +86,25 @@ class TallyTest {
     }
 
     @Test
+    fun uncombinableSharesStayCountedWithoutRelease() {
+        // Regression: shares that cannot combine (duplicate x here) used to
+        // make tryRelease throw after the vote was already recorded, so the
+        // vote showed in the UI but was treated as ignored and never saved.
+        // A failed release must return NONE with the vote kept, like Go.
+        val t = tally()
+        val zero = ByteArray(vec.shares[0].size)
+        val first = t.handle(confirm(guardians[0], share = zero), now)
+        assertEquals(Action.NONE, first.action)
+        val second = t.handle(confirm(guardians[1], share = zero), now)
+        assertEquals(Action.NONE, second.action)
+        assertEquals(2, t.confirmStatus(now).confirms)
+        // Both votes survive a snapshot round trip, so a restart keeps them.
+        val restored = Tally(activist, guardians, guardians[0], 2)
+        restored.restore(TallyStore.parse(TallyStore.serialize(t.snapshot()))!!)
+        assertEquals(2, restored.confirmStatus(now).confirms)
+    }
+
+    @Test
     fun threeOfThreeReleases() {
         val v3 = ShamirVectors.named("k3-of-n5")
         val t = tally(threshold = 3)

@@ -1,5 +1,6 @@
 package com.altradits.kengele.guardian
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -7,9 +8,11 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.altradits.kengele.guardian.confirm.Action
 import com.altradits.kengele.guardian.confirm.AllClearChecklist
 import com.altradits.kengele.guardian.confirm.ConfirmBodies
 import com.altradits.kengele.guardian.confirm.ConfirmException
+import com.altradits.kengele.guardian.confirm.KitOpen
 import com.altradits.kengele.guardian.confirm.TallyException
 import com.altradits.kengele.guardian.nostr.NostrService
 import com.altradits.kengele.message.KengeleMessage
@@ -83,7 +86,13 @@ class AllClearActivity : AppCompatActivity() {
                 view.setTextIsSelectable(true)
             }
             try {
-                t.handle(event.copy(signer = GuardianState.ownPub()), now)
+                val outcome = t.handle(event.copy(signer = GuardianState.ownPub()), now)
+                GuardianState.saveTally()
+                if (outcome.action == Action.FOUND_SAFE) {
+                    outcome.alertKey?.let { KitOpen.wipe(it) }
+                    outcome.key?.let { KitOpen.wipe(it) }
+                    startActivity(Intent(this, ReleaseActivity::class.java))
+                }
             } catch (e: TallyException) {
                 result.text = getString(R.string.inbox_ignored, e.message ?: "")
                 refresh(explainer)

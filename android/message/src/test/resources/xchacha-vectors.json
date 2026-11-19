@@ -1,0 +1,37 @@
+{
+  "generator": "x/crypto chacha20poly1305.NewX with fixed made-up keys",
+  "vectors": [
+    {
+      "name": "empty",
+      "key_hex": "176d0bde6153dc8a699a3b11742d0ac05be31d17cef9e32f35d6061b4ce12b49",
+      "nonce_hex": "6c5833e465c04586a98e10e417fbe3659e35dc4e6fcdc488",
+      "pt_hex": "",
+      "ad_hex": "",
+      "ct_hex": "2f05e710eb7b1998c253c782da6356a2"
+    },
+    {
+      "name": "short",
+      "key_hex": "2112995d6b8e6c5f9599907be6b6d1df384b0c472db8cd716331035a3b4e09be",
+      "nonce_hex": "5ade2a263f587d25e468d97022c4fcc452d2667a83a482e0",
+      "pt_hex": "df24959ab5",
+      "ad_hex": "c6d6906a0570fdca",
+      "ct_hex": "c8cd1567f2c331ef26ad25fdc649d1d423a0c49192"
+    },
+    {
+      "name": "block",
+      "key_hex": "1421638ecbd130b990c25b3956c78e55120751a0388cd466be53ef26e938a454",
+      "nonce_hex": "eb479d90cac1404c3d75a574aca40543c1b356dc91d34cb9",
+      "pt_hex": "ce1ec648877a18cfac0c38b8be06db5eef47e628cc4e153ba0954b0025888339f078bd6853ecdd884675edfcc0e24b7468fbff4559d048d0c3547e5b31de5893",
+      "ad_hex": "0efad50c35142f5ae75933c59001bd701df2e2a9c547c7d4b9aa41548aceee6e",
+      "ct_hex": "9940ceb8252dbbe660e9d6a78420fe6c6a4ff6d60e5b61c49e2afd8a6c4797ed5d541f94a8f3fdf1a913247ec449f71c663cf85c19058c8a2d082262adbadeaba80950e594b200d8afa41d87c3989d71"
+    },
+    {
+      "name": "long",
+      "key_hex": "bf4e175ccc2fa75b208687b22556f63232f041d59ceb151d7dfd0d31e24787e0",
+      "nonce_hex": "f9d2277a6cf5cc030fb414a4fa16e42c2ea20951958ae1ab",
+      "pt_hex": "bfd887832bbee057694331e4c2c031964ba9e0f83682c2b64fb2cb8c0b88cb163bb32854e7b7942c3774c0c2abdb741e550301cd94fcc49f513fc667c7eb6b24512c9db7fecf8980c6efc8ce18ca74291f1836c4b3974cab974266d94ec845312adde247a4948fb3c5ac071cf9318359b3a628f415c0fcf693f56a4c43817e3446c33eedf8d688c6c8ceefbbb2bf7bd3137ab27740e9d4b608d16008188e5d6b95cef42e2ec4207086568aa297cc46636adf44d3d0d651271490cdf62cdc1e227c69c84c9fc3ec13",
+      "ad_hex": "",
+      "ct_hex": "baabca279fe677159e17bfbfca13b6ff6d8773ce5ac1f03e69e92adda887d1a162f86b2040a0d6f0652900fa7442517353db0852f150cb2997940b058b85b6c8012958ef97c7a208f4672b2431d2e34022606e9cd36d27f04d1f9fd7e127263b7e085fb8057d2bbe4b25dd1bd5210a1c2004d5298fde0b1d9e6d3a1cc3d78144c378aa50d6dbe3d4530004d5dc5690d4475fd2d9c2039515499fc3e94482fd54dc217cc6326dad8c3b6e2f503f5e2d3939be2df0a4065f990474b9dad774ac953e5e828d3ab40de9668835c40e6e789a44cfdd95afee2d48"
+    }
+  ]
+}

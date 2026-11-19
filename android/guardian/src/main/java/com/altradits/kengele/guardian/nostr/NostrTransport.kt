@@ -138,6 +138,31 @@ class NostrTransport(
         return wires.indices.map { send(wires[it], recipients[it]) }
     }
 
+    /** What happened to one [publishPublic]: how many relays accepted the note. */
+    data class PublicResult(val accepted: Int, val total: Int)
+
+    /**
+     * Broadcasts a signed public note (an alert or a found-safe update) to
+     * every configured relay in parallel, reusing the publish connections
+     * and the reachability reports. Only an explicit OK true counts as
+     * accepted. The same note may be sent again: relays dedup by event id.
+     */
+    fun publishPublic(event: NostrEvent): PublicResult {
+        val targets = config.relays.toSet().sorted()
+        if (targets.isEmpty()) return PublicResult(0, 0)
+        val accepted = BooleanArray(targets.size)
+        val threads = targets.mapIndexed { i, url ->
+            thread(isDaemon = true) {
+                val (ok, reached) = publishOne(url, event)
+                setUp(url, reached)
+                accepted[i] = ok
+            }
+        }
+        for (t in threads) t.join()
+        report()
+        return PublicResult(accepted.count { it }, targets.size)
+    }
+
     /** Retries every queued gift wrap once; returns how many are still waiting. */
     fun flush(): Int {
         val items = config.outbox.list()
