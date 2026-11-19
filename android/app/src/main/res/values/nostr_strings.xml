@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nostr sending: relay settings, send status, transport line. -->
+    <string name="nostr_menu">Nostr relays</string>
+    <string name="nostr_title">Nostr relays</string>
+    <string name="nostr_note">Check-ins, duress check-ins and panics travel over these relays as sealed gift wraps. The activist and guardians choose them together; use at least three run by different operators.</string>
+    <string name="nostr_relay_hint">Relay address, like wss://relay.example</string>
+    <string name="nostr_relays_count">Relays: %1$d</string>
+    <string name="nostr_invalid_relay">That relay address is not valid.</string>
+    <string name="nostr_min_accepted_hint">Relays that must accept, at least 1</string>
+    <string name="nostr_invalid_min_accepted">That number needs to be 1 or more.</string>
+    <string name="nostr_saved">Relay settings saved.</string>
+    <string name="nostr_test">Test connection</string>
+    <string name="nostr_testing">Testing…</string>
+    <string name="nostr_test_result">Reachable: %1$d of %2$d.</string>
+    <string name="nostr_test_none">Add a relay first.</string>
+    <string name="nostr_sent">Sent over Nostr to %1$d of %2$d relays.</string>
+    <string name="nostr_partial_queued">Nostr: %1$d of %2$d sent, %3$d queued. Will retry.</string>
+    <string name="nostr_all_queued">Nostr unreachable. Queued, will retry.</string>
+    <string name="nostr_invalid_dropped">Message error. Nostr not sent.</string>
+    <string name="nostr_nothing_configured">No Nostr relays and no SMS opt-in: nothing was sent.</string>
+    <string name="nostr_transport_on">Nostr: %1$d relays, needs %2$d.</string>
+    <string name="nostr_transport_off">Nostr is off: no relays set.</string>
+</resources>

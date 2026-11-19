@@ -15,6 +15,8 @@
          fallback ships through F-Droid and a signed APK. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Nostr relay publishing goes over plain TCP/TLS sockets. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Below API 31 the OS forces these for BLE; all capped at 30. -->
     <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
@@ -50,6 +52,7 @@
         <activity android:name=".CheckInResultActivity" android:exported="false" />
         <activity android:name=".mesh.MeshStatusActivity" android:exported="false" />
         <activity android:name=".sms.SmsSettingsActivity" android:exported="false" />
+        <activity android:name=".nostr.NostrSettingsActivity" android:exported="false" />
         <service
             android:name=".mesh.MeshService"
             android:foregroundServiceType="connectedDevice"

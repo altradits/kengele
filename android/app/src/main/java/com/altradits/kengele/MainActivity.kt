@@ -9,6 +9,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.altradits.kengele.checkin.CheckInManager
 import com.altradits.kengele.guardian.InMemoryGuardianStore
+import com.altradits.kengele.nostr.DualCheckInSender
+import com.altradits.kengele.nostr.NostrCheckInSender
+import com.altradits.kengele.nostr.NostrStatusStrings
+import com.altradits.kengele.nostr.smsWillSend
 import com.altradits.kengele.sms.SmsBatchKind
 import com.altradits.kengele.sms.SmsNoticeStrings
 import com.altradits.kengele.sms.SmsSender
@@ -19,6 +23,7 @@ import com.altradits.kengele.sms.SystemSmsScheduler
 /** Skeleton home screen: setup, check-in and panic. */
 class MainActivity : AppCompatActivity() {
     private lateinit var status: TextView
+    private lateinit var transport: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +32,7 @@ class MainActivity : AppCompatActivity() {
         val column = Ui.column(this)
         Ui.addText(column, getString(R.string.app_name), 22f)
         status = Ui.addText(column, "")
-        Ui.addText(column, getString(R.string.transport_stub), 13f)
+        transport = Ui.addText(column, "", 13f)
         Ui.addButton(column, getString(R.string.menu_guardians)) {
             startActivity(Intent(this, GuardianSetupActivity::class.java))
         }
@@ -49,6 +54,9 @@ class MainActivity : AppCompatActivity() {
         Ui.addButton(column, getString(R.string.sms_menu)) {
             startActivity(Intent(this, com.altradits.kengele.sms.SmsSettingsActivity::class.java))
         }
+        Ui.addButton(column, getString(R.string.nostr_menu)) {
+            startActivity(Intent(this, com.altradits.kengele.nostr.NostrSettingsActivity::class.java))
+        }
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
@@ -67,6 +75,12 @@ class MainActivity : AppCompatActivity() {
             AppState.guardians.guardians().size,
             windowText,
         )
+        val relays = AppState.nostr.relays()
+        transport.text = if (relays.isEmpty()) {
+            getString(R.string.nostr_transport_off)
+        } else {
+            getString(R.string.nostr_transport_on, relays.size, AppState.nostr.minAccepted())
+        }
     }
 
     private fun confirmPanic() {
@@ -87,21 +101,47 @@ class MainActivity : AppCompatActivity() {
         // Deliberate-gesture trigger (5 power presses) still to come; this
         // sends from the guarded confirmation above (#15 scope).
         val guardianKeys = guardians.map { InMemoryGuardianStore.bytesToHex(it) }
-        // Encrypted SMS fallback (docs/sms-transport.md). Panic is an alarm
-        // kind, so it goes out under both opt-in profiles, with the same
-        // batch-kind gating as the check-in path.
-        val manager = CheckInManager(
-            SmsSender(
-                directory = StoreSmsDirectory(AppState.sms) { guardianKeys },
-                gateway = SystemSmsGateway(applicationContext),
-                scheduler = SystemSmsScheduler(),
-                kindOfBatch = { SmsBatchKind.forPanic() },
-                // TODO: shutdown-mode signal; panic is an alarm kind so it
-                // sends in both modes either way.
-                shutdownMode = { false },
-                onNotice = { notice ->
-                    Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
+        val batchKind = SmsBatchKind.forPanic()
+        val directory = StoreSmsDirectory(AppState.sms) { guardianKeys }
+        // Panic goes out over BOTH transports: Nostr when relays are
+        // configured, plus the encrypted SMS fallback (docs/sms-transport.md).
+        // Panic is an alarm kind, so it goes out under both SMS opt-in
+        // profiles, with the same batch-kind gating as the check-in path.
+        val relays = AppState.nostr.relays()
+        val nostrSender = if (relays.isEmpty()) {
+            null
+        } else {
+            NostrCheckInSender(
+                ownPriv = AppState.activistPriv(),
+                recipients = guardians,
+                relays = relays,
+                minAccepted = AppState.nostr.minAccepted(),
+                onStatus = { sendStatus ->
+                    runOnUiThread {
+                        val rendered = NostrStatusStrings.render(sendStatus)
+                        Toast.makeText(this, getString(rendered.res, *rendered.args), Toast.LENGTH_LONG).show()
+                    }
                 },
+            )
+        }
+        if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, false)) {
+            Toast.makeText(this, R.string.nostr_nothing_configured, Toast.LENGTH_LONG).show()
+        }
+        val manager = CheckInManager(
+            DualCheckInSender(
+                nostr = nostrSender,
+                sms = SmsSender(
+                    directory = directory,
+                    gateway = SystemSmsGateway(applicationContext),
+                    scheduler = SystemSmsScheduler(),
+                    kindOfBatch = { batchKind },
+                    // TODO: shutdown-mode signal; panic is an alarm kind so it
+                    // sends in both modes either way.
+                    shutdownMode = { false },
+                    onNotice = { notice ->
+                        Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
+                    },
+                ),
             ),
         )
         val outcome = manager.panic(

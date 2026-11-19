@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Utumaji wa Nostr: mipangilio ya relay, hali ya utumaji, mstari wa usafiri. -->
+    <string name="nostr_menu">Relay za Nostr</string>
+    <string name="nostr_title">Relay za Nostr</string>
+    <string name="nostr_note">Ripoti, ripoti za shuruti na tahadhari za hatari hupitia relay hizi kama vifurushi vilivyofungwa. Mwanaharakati na walinzi huzichagua pamoja; tumia angalau relay tatu za waendeshaji tofauti.</string>
+    <string name="nostr_relay_hint">Anwani ya relay, kama wss://relay.example</string>
+    <string name="nostr_relays_count">Relay: %1$d</string>
+    <string name="nostr_invalid_relay">Anwani hiyo ya relay si sahihi.</string>
+    <string name="nostr_min_accepted_hint">Relay zinazopaswa kukubali, angalau 1</string>
+    <string name="nostr_invalid_min_accepted">Namba hiyo lazima iwe 1 au zaidi.</string>
+    <string name="nostr_saved">Mipangilio ya relay imehifadhiwa.</string>
+    <string name="nostr_test">Jaribu muunganisho</string>
+    <string name="nostr_testing">Inajaribu…</string>
+    <string name="nostr_test_result">Zinazofikiwa: %1$d kati ya %2$d.</string>
+    <string name="nostr_test_none">Ongeza relay kwanza.</string>
+    <string name="nostr_sent">Imetumwa kwa Nostr kupitia relay %1$d kati ya %2$d.</string>
+    <string name="nostr_partial_queued">Nostr: %1$d kati ya %2$d zimetumwa, %3$d zimewekwa. Itajaribu tena.</string>
+    <string name="nostr_all_queued">Nostr haipatikani. Imewekwa, itajaribu tena.</string>
+    <string name="nostr_invalid_dropped">Hitilafu ya ujumbe. Nostr haijatumwa.</string>
+    <string name="nostr_nothing_configured">Hakuna relay za Nostr wala SMS: hakuna kilichotumwa.</string>
+    <string name="nostr_transport_on">Nostr: relay %1$d, inahitaji %2$d.</string>
+    <string name="nostr_transport_off">Nostr imezimwa: hakuna relay.</string>
+</resources>

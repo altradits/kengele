@@ -9,6 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 import com.altradits.kengele.checkin.CheckInManager
 import com.altradits.kengele.guardian.InMemoryGuardianStore
 import com.altradits.kengele.message.KengeleMessage
+import com.altradits.kengele.nostr.DualCheckInSender
+import com.altradits.kengele.nostr.NostrCheckInSender
+import com.altradits.kengele.nostr.NostrStatusStrings
+import com.altradits.kengele.nostr.smsWillSend
 import com.altradits.kengele.sms.SmsBatchKind
 import com.altradits.kengele.sms.SmsNoticeStrings
 import com.altradits.kengele.sms.SmsSender
@@ -53,18 +57,49 @@ class PinEntryActivity : AppCompatActivity() {
             // path (MainActivity). Off by default until the activist opts
             // each guardian in.
             val guardianKeys = guardians.map { InMemoryGuardianStore.bytesToHex(it) }
-            val manager = CheckInManager(
-                SmsSender(
-                    directory = StoreSmsDirectory(AppState.sms) { guardianKeys },
-                    gateway = SystemSmsGateway(applicationContext),
-                    scheduler = SystemSmsScheduler(),
-                    kindOfBatch = { batchKind },
-                    // TODO: shutdown-mode signal; ordinary check-ins stay
-                    // Nostr-only until it lands.
-                    shutdownMode = { false },
-                    onNotice = { notice ->
-                        Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
+            val directory = StoreSmsDirectory(AppState.sms) { guardianKeys }
+            // Check-ins go out over BOTH transports: Nostr when relays are
+            // configured, plus the encrypted SMS fallback where a guardian
+            // opted in. Ordinary check-ins outside shutdown stay Nostr-only
+            // because SmsSender skips them per profile.
+            val relays = AppState.nostr.relays()
+            val nostrSender = if (relays.isEmpty()) {
+                null
+            } else {
+                NostrCheckInSender(
+                    ownPriv = AppState.activistPriv(),
+                    recipients = guardians,
+                    relays = relays,
+                    minAccepted = AppState.nostr.minAccepted(),
+                    onStatus = { sendStatus ->
+                        // This screen finishes right after sending, so the
+                        // status toast uses the application context.
+                        val app = applicationContext
+                        runOnUiThread {
+                            val rendered = NostrStatusStrings.render(sendStatus)
+                            Toast.makeText(app, getString(rendered.res, *rendered.args), Toast.LENGTH_LONG).show()
+                        }
                     },
+                )
+            }
+            if (nostrSender == null && !smsWillSend(directory, guardianKeys.size, batchKind, false)) {
+                Toast.makeText(this, R.string.nostr_nothing_configured, Toast.LENGTH_LONG).show()
+            }
+            val manager = CheckInManager(
+                DualCheckInSender(
+                    nostr = nostrSender,
+                    sms = SmsSender(
+                        directory = directory,
+                        gateway = SystemSmsGateway(applicationContext),
+                        scheduler = SystemSmsScheduler(),
+                        kindOfBatch = { batchKind },
+                        // TODO: shutdown-mode signal; ordinary check-ins stay
+                        // Nostr-only until it lands.
+                        shutdownMode = { false },
+                        onNotice = { notice ->
+                            Toast.makeText(this, SmsNoticeStrings.res(notice), Toast.LENGTH_LONG).show()
+                        },
+                    ),
                 ),
             )
             val outcome = manager.checkIn(

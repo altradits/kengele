@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import android.util.Base64
 import com.altradits.kengele.guardian.GuardianStore
 import com.altradits.kengele.message.Secp256k1
+import com.altradits.kengele.nostr.EncryptedNostrStore
+import com.altradits.kengele.nostr.NostrStore
 import com.altradits.kengele.pin.PinStore
 import com.altradits.kengele.sms.SmsStore
 import com.altradits.kengele.store.EncryptedGuardianStore
@@ -27,6 +29,8 @@ object AppState {
         private set
     lateinit var sms: SmsStore
         private set
+    lateinit var nostr: NostrStore
+        private set
 
     fun init(context: Context) {
         if (this::prefs.isInitialized) return
@@ -34,6 +38,7 @@ object AppState {
         guardians = EncryptedGuardianStore(prefs)
         pins = EncryptedPinStore(prefs)
         sms = EncryptedSmsStore(prefs)
+        nostr = EncryptedNostrStore(prefs)
     }
 
     /** The activist's signing key, generated once and kept encrypted. */
