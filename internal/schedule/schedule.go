@@ -425,6 +425,12 @@ func (e *Engine) Tick(now time.Time) []Notice {
 				t.resume, t.state = StateWaiting, StatePaused
 			}
 			out = append(out, Notice{Kind: NoticeStarted, Activist: k, At: now, Deadline: t.missAt})
+			if t.offline {
+				// A window that opens mid-shutdown pauses at once; say so
+				// or the operator cannot tell a held clock from a dead one.
+				out = append(out, Notice{Kind: NoticePaused, Activist: k, At: now, Deadline: t.missAt,
+					Reason: "window opened while all of this activist's transports are down"})
+			}
 		}
 	}
 

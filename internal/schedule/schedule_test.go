@@ -379,7 +379,7 @@ func TestSchedule(t *testing.T) {
 		{
 			name:    "window that starts during a shutdown starts paused",
 			steps:   []step{offline(-10), tick(0), tick(200), online(220)},
-			notices: []string{"started/0", "resumed/0"},
+			notices: []string{"started/0", "paused/0", "resumed/0"},
 			want:    []want{{0, StateWaiting, 340}},
 		},
 		{
