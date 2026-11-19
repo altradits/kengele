@@ -91,7 +91,7 @@ jobs:
           for n in 1 2; do
             rm -rf "/tmp/repro/build$n"
             cp -a "$GITHUB_WORKSPACE" "/tmp/repro/build$n"
-            (cd "/tmp/repro/build$n" && sh android/gradlew :app:assembleRelease :guardian:assembleRelease --no-daemon --rerun-tasks)
+            (cd "/tmp/repro/build$n" && sh android/gradlew -p android :app:assembleRelease :guardian:assembleRelease --no-daemon --rerun-tasks)
             ls "/tmp/repro/build$n"/android/app/build/outputs/apk/release/*.apk
             ls "/tmp/repro/build$n"/android/guardian/build/outputs/apk/release/*.apk
             (cd "/tmp/repro/build$n" && sha256sum android/app/build/outputs/apk/release/*.apk android/guardian/build/outputs/apk/release/*.apk) > "/tmp/repro/hashes$n.txt"
