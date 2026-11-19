@@ -39,7 +39,7 @@ func usage(w io.Writer) {
   kengele-exit run -mesh sim|tcp://host:port|serial:/dev/ttyUSB0 -relays wss://a,wss://b [-queue queue.json] [-min-accepted 1] [-tick 30s]
 
 Forwards Kengele gift wraps from a Meshtastic mesh to Nostr relays.
-Husambaza gift wraps za Kengele kutoka mesh ya Meshtastic kwenda relays za Nostr.
+Husambaza vifurushi vilivyofungwa vya Kengele kutoka mesh ya Meshtastic kwenda relay za Nostr.
 Not for real use. / Si kwa matumizi halisi.`)
 }
 
@@ -64,12 +64,12 @@ func cli(args []string, out io.Writer) error {
 
 func runCmd(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
-	meshSpec := fs.String("mesh", "", "mesh to listen on: sim, tcp://host:port or serial:/path")
-	relays := fs.String("relays", "", "comma-separated Nostr relay URLs")
-	queuePath := fs.String("queue", "", "queue file for messages Nostr cannot take yet (empty: memory only)")
-	minAccepted := fs.Int("min-accepted", 1, "relays that must accept a message")
-	every := fs.Duration("tick", 30*time.Second, "how often to retry the queue")
-	reasmTimeout := fs.Duration("reassemble-timeout", 10*time.Minute, "how long to wait for missing fragments")
+	meshSpec := fs.String("mesh", "", "mesh to listen on: sim, tcp://host:port or serial:/path / mesh ya kusikiliza: sim, tcp://host:port au serial:/path")
+	relays := fs.String("relays", "", "comma-separated Nostr relay URLs / anwani za relay za Nostr zikitenganishwa na koma")
+	queuePath := fs.String("queue", "", "queue file for messages Nostr cannot take yet (empty: memory only) / faili la foleni kwa ujumbe ambao Nostr haijapokea bado (tupu: kumbukumbu tu)")
+	minAccepted := fs.Int("min-accepted", 1, "relays that must accept a message / relay zinazopaswa kukubali ujumbe")
+	every := fs.Duration("tick", 30*time.Second, "how often to retry the queue / kila baada ya muda gani kujaribu foleni tena")
+	reasmTimeout := fs.Duration("reassemble-timeout", 10*time.Minute, "how long to wait for missing fragments / kusubiri kwa muda gani vipande vilivyopotea")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

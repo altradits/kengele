@@ -89,12 +89,12 @@ var enStrings = uiStrings{
 
 var swStrings = uiStrings{
 	broadcastTitle:  "Tangaza kwa Bluetooth",
-	meshNearby:      "Mesh: simu %d karibu",
+	meshNearby:      "Simu-kwa-simu: simu %d karibu",
 	bluetoothOff:    "Bluetooth imezima. Iwashe ili kufikia simu zilizo karibu.",
 	relayingBlindly: "Inasambaza bila kusoma",
 	noPathFailsSafe: "Hakuna njia — kimya ni salama",
 
-	title:       "demo ya kengele-meshlink: A->B->C, usambazaji wa upofu, kwenye kumbukumbu (hakuna redio)",
+	title:       "demo ya kengele-meshlink: A->B->C, kubeba bila kusoma, kwenye kumbukumbu (hakuna redio)",
 	blindNote:   "B inasambaza baiti bila kuzisoma",
 	broadcast:   "%s imetangaza msg 0x%06x kipande %d/%d ttl %d",
 	relay:       "%s inasambaza msg 0x%06x kipande %d/%d ttl %d (bila kusoma)",
@@ -125,7 +125,11 @@ func usage(w io.Writer) {
 demo runs a 3-node A->B->C blind-carry chain in memory; --drop lists
 nodes that discard everything (proves silence fails safe); --sw prints
 Swahili strings. qr prints the demo datagram as 304 characters for a
-QR courier.`)
+QR courier.
+demo inaendesha msururu wa A->B->C wa kubeba bila kusoma kwenye
+kumbukumbu; --drop inataja nodi zinazotupa kila kitu (inaonyesha kimya
+ni salama); --sw inachapisha maneno ya Kiswahili. qr inachapisha
+datagramu ya demo kama herufi 304 za kubeba kwa QR.`)
 }
 
 func cli(args []string, out io.Writer) error {
@@ -139,19 +143,19 @@ func cli(args []string, out io.Writer) error {
 	}
 	if len(args) == 0 {
 		usage(out)
-		return fmt.Errorf("%w: need a subcommand", errMisuse)
+		return fmt.Errorf("%w: need a subcommand / inahitaji amri: demo, qr au version", errMisuse)
 	}
 	switch args[0] {
 	case "demo":
 		return demo(args[1:], out)
 	case "qr":
 		if len(args) != 1 {
-			return fmt.Errorf("%w: qr takes no arguments", errMisuse)
+			return fmt.Errorf("%w: qr takes no arguments / qr haichukui hoja", errMisuse)
 		}
 		return qr(out)
 	default:
 		usage(out)
-		return fmt.Errorf("%w: unknown subcommand %q", errMisuse, args[0])
+		return fmt.Errorf("%w: unknown subcommand %q / amri %q haijulikani", errMisuse, args[0], args[0])
 	}
 }
 
@@ -196,10 +200,10 @@ func demo(args []string, out io.Writer) error {
 		return fmt.Errorf("%w: %v", errMisuse, err)
 	}
 	if fs.NArg() != 0 {
-		return fmt.Errorf("%w: demo takes no positional arguments", errMisuse)
+		return fmt.Errorf("%w: demo takes no positional arguments / demo haichukui hoja", errMisuse)
 	}
 	if *ttl < 0 || *ttl > 255 {
-		return fmt.Errorf("%w: --ttl must be 0..255", errMisuse)
+		return fmt.Errorf("%w: --ttl must be 0..255 / --ttl lazima iwe 0..255", errMisuse)
 	}
 	ui := enStrings
 	if *sw {
@@ -218,7 +222,7 @@ func demo(args []string, out io.Writer) error {
 			id = strings.TrimSpace(id)
 			n := sim.Node(id)
 			if n == nil {
-				return fmt.Errorf("%w: --drop names unknown node %q (demo nodes are A,B,C)", errMisuse, id)
+				return fmt.Errorf("%w: --drop names unknown node %q (demo nodes are A,B,C) / --drop imetaja nodi %q isiyojulikana (nodi za demo ni A,B,C)", errMisuse, id, id)
 			}
 			n.Drop = true
 		}
@@ -265,7 +269,7 @@ func demo(args []string, out io.Writer) error {
 	}
 	opened, err := message.Open(got[0].Datagram, guardian, [][32]byte{message.PublicKey(activist)}, time.Now())
 	if err != nil {
-		return fmt.Errorf("C cannot open its delivery: %w", err)
+		return fmt.Errorf("C cannot open its delivery / C haiwezi kufungua kilichofika: %w", err)
 	}
 	fmt.Fprintf(out, ui.delivered+"\n", "C", opened.Kind, opened.Seq,
 		opened.CreatedAt.UTC().Format(time.RFC3339), got[0].Hops)

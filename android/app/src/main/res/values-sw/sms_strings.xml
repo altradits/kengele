@@ -3,7 +3,7 @@
     <!-- SMS mbadala (docs/sms-transport.md). Inaonyeshwa unapoiwasha SMS, na inaposhindwa. -->
     <string name="sms_profile_off">Imezimwa</string>
     <string name="sms_profile_alarm_only">Tahadhari tu</string>
-    <string name="sms_profile_shutdown_checkins">Ripoti wakati wa kuzima</string>
+    <string name="sms_profile_shutdown_checkins">Ripoti mtandao ukikatika</string>
     <string name="sms_warning">SMS mbadala inaionyesha kampuni yako ya simu kwamba namba yako ilimtumia mlinzi huyu ujumbe, na lini. Programu yako ya Messages pia inahifadhi ujumbe huo. Iwasha tu kwa walinzi ambao uhusiano wako nao tayari unajulikana.</string>
     <string name="sms_failed_queued">SMS imeshindwa. Itajaribu tena yenyewe.</string>
     <string name="sms_no_permission">Ruhusa ya SMS imezimwa, kwa hivyo SMS mbadala haiwezi kutuma. Iwasha kwenye Mipangilio.</string>

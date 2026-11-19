@@ -4,11 +4,11 @@
 
     <string name="menu_guardians">Walinzi</string>
     <string name="menu_window">Kipindi cha ulinzi</string>
-    <string name="menu_pins">Weka PIN</string>
-    <string name="menu_checkin">Jitokeze</string>
-    <string name="menu_panic">Hatari</string>
+    <string name="menu_pins">Weka namba za siri</string>
+    <string name="menu_checkin">Ripoti uko salama</string>
+    <string name="menu_panic">Dharura</string>
 
-    <string name="transport_stub">Check-in hutoka kwa SMS pekee (hiari); utumaji wa Nostr haujaunganishwa bado.</string>
+    <string name="transport_stub">Ripoti hutoka kwa SMS pekee (hiari); utumaji wa Nostr haujaunganishwa bado.</string>
     <string name="status_line">Walinzi: %1$d · Kipindi: %2$s</string>
     <string name="status_window_set">dk %1$d</string>
     <string name="window_none">hakijawekwa</string>
@@ -24,61 +24,61 @@
     <string name="window_title">Kipindi cha ulinzi</string>
     <string name="window_start_in">Anza baada ya (dakika kuanzia sasa)</string>
     <string name="window_duration">Muda (dakika)</string>
-    <string name="window_interval">Jitokeze kila (dakika)</string>
-    <string name="window_grace">Kuchelewa baada ya (dakika)</string>
+    <string name="window_interval">Kuripoti kila (dakika)</string>
+    <string name="window_grace">Muda wa ziada (dakika)</string>
     <string name="window_reminder">Kumbusha kabla ya (dakika)</string>
     <string name="save">Hifadhi</string>
     <string name="window_saved">Kipindi kimehifadhiwa.</string>
     <string name="window_needs_start_end">Kipindi kinahitaji mwanzo na mwisho.</string>
     <string name="window_end_after_start">Mwisho wa kipindi lazima uwe baada ya mwanzo.</string>
     <string name="window_interval_positive">Muda kati ya ripoti lazima uwe zaidi ya sifuri.</string>
-    <string name="window_grace_reminder_negative">Muda wa kuchelewa na wa ukumbusho usiwe hasi.</string>
+    <string name="window_grace_reminder_negative">Muda wa ziada na wa ukumbusho usiwe hasi.</string>
     <string name="window_reminder_shorter">Ukumbusho lazima uwe mfupi kuliko muda wa ripoti.</string>
 
-    <string name="pins_title">PIN</string>
-    <string name="duress_explainer">Ikiwa mtu anakulazimisha kujitokeza, weka PIN ya shuruti. Inaonyesha skrini ile ile lakini inainua tahadhari kimya kimya.</string>
-    <string name="real_pin">PIN ya kila siku</string>
-    <string name="duress_pin">PIN ya shuruti</string>
-    <string name="pins_invalid">PIN lazima ziwe herufi 4–32 na lazima zitofautiane.</string>
-    <string name="pins_saved">PIN zimehifadhiwa.</string>
+    <string name="pins_title">Namba za siri</string>
+    <string name="duress_explainer">Ikiwa mtu anakulazimisha kuripoti, weka namba ya siri ya kulazimishwa. Inaonekana kawaida lakini inalia kengele kimya.</string>
+    <string name="real_pin">Namba ya siri ya kawaida</string>
+    <string name="duress_pin">Namba ya siri ya kulazimishwa</string>
+    <string name="pins_invalid">Namba za siri lazima ziwe herufi 4–32 na lazima zitofautiane.</string>
+    <string name="pins_saved">Namba za siri zimehifadhiwa.</string>
 
-    <string name="checkin_title">Jitokeze</string>
-    <string name="enter_pin">Weka PIN</string>
+    <string name="checkin_title">Ripoti uko salama</string>
+    <string name="enter_pin">Weka namba ya siri</string>
     <string name="place_hint">Mahali, hiari. Unaandika mwenyewe, kamwe GPS.</string>
-    <string name="checkin_button">Jitokeze</string>
-    <string name="place_too_long">Mahali hapo ni parefu mno (herufi 86 zaidi).</string>
-    <string name="checked_in">Umeripoti.</string>
-    <string name="wrong_pin">PIN si sahihi, jaribu tena.</string>
+    <string name="checkin_button">Ripoti uko salama</string>
+    <string name="place_too_long">Mahali hapo ni parefu mno (baiti 86 kwa zaidi).</string>
+    <string name="checked_in">Umeripoti uko salama.</string>
+    <string name="wrong_pin">Namba ya siri si sahihi, jaribu tena.</string>
 
-    <string name="panic_confirm_title">Tuma tahadhari ya hatari?</string>
-    <string name="panic_confirm_message">Hii inawaambia walinzi wako kuwa ni dharura. Itumie tu ukiwa hatarini kweli.</string>
-    <string name="panic_sent">Tahadhari ya hatari imehifadhiwa.</string>
+    <string name="panic_confirm_title">Tuma tahadhari ya dharura?</string>
+    <string name="panic_confirm_message">Hii inawaambia walinzi wako kuwa ni dharura. Itumie tu katika dharura ya kweli.</string>
+    <string name="panic_sent">Tahadhari ya dharura imepangwa kutumwa.</string>
     <string name="yes">Ndiyo</string>
     <string name="no">Hapana</string>
 
-    <string name="menu_mesh">Mtandao</string>
+    <string name="menu_mesh">Simu-kwa-simu</string>
 
-    <string name="mesh_title">Usafirishaji wa mtandao</string>
+    <string name="mesh_title">Kubeba simu-kwa-simu</string>
     <string name="mesh_relaying">Inasambaza bila kusoma</string>
     <string name="mesh_no_path">Hakuna njia — kimya ni salama</string>
     <string name="mesh_advertising">Inatangaza: %1$s</string>
     <string name="mesh_scanning">Inatafuta: %1$s</string>
     <string name="mesh_links">Viungo hai: %1$d</string>
     <string name="mesh_relayed">Datagramu zilizosambazwa: %1$d</string>
-    <string name="mesh_start">Anzisha mtandao</string>
-    <string name="mesh_stop">Simamisha mtandao</string>
-    <string name="mesh_running">Mtandao unafanya kazi.</string>
-    <string name="mesh_stopped">Mtandao umezimwa.</string>
+    <string name="mesh_start">Anzisha simu-kwa-simu</string>
+    <string name="mesh_stop">Simamisha simu-kwa-simu</string>
+    <string name="mesh_running">Simu-kwa-simu inafanya kazi.</string>
+    <string name="mesh_stopped">Simu-kwa-simu imezimwa.</string>
     <string name="mesh_perm_title">Ruhusa ya Bluetooth</string>
-    <string name="mesh_perm_rationale">Kengele hutumia Bluetooth kusafirisha tahadhari zilizofungwa kati ya simu zilizo karibu wakati wa kipindi chako. Haitumii GPS kamwe.</string>
+    <string name="mesh_perm_rationale">Kengele hutumia Bluetooth kubeba tahadhari zilizofungwa kati ya simu zilizo karibu wakati wa kipindi chako cha ulinzi. Haitumii GPS kamwe.</string>
     <string name="mesh_perm_allow">Endelea</string>
-    <string name="mesh_perm_denied">Ruhusa ya Bluetooth imekataliwa. Mtandao umezimwa.</string>
-    <string name="mesh_service_name">Usafirishaji wa mtandao</string>
-    <string name="mesh_service_text">Inasafirisha tahadhari zilizofungwa kwa simu zilizo karibu.</string>
-    <string name="mesh_window_inactive">Mtandao hufanya kazi wakati wa kipindi chako. Weka kipindi kwanza.</string>
+    <string name="mesh_perm_denied">Ruhusa ya Bluetooth imekataliwa. Kubeba simu-kwa-simu kumezimwa.</string>
+    <string name="mesh_service_name">Kubeba simu-kwa-simu</string>
+    <string name="mesh_service_text">Inabeba tahadhari zilizofungwa kwa simu zilizo karibu.</string>
+    <string name="mesh_window_inactive">Simu-kwa-simu hufanya kazi wakati wa kipindi chako cha ulinzi. Weka kipindi kwanza.</string>
     <string name="mesh_unavailable">Bluetooth LE haipatikani kwenye simu hii.</string>
 
-    <string name="need_setup">Weka walinzi, kipindi na PIN kwanza.</string>
+    <string name="need_setup">Weka walinzi, kipindi na namba za siri kwanza.</string>
     <string name="result_ok">Sawa</string>
     <string name="result_try_again">Jaribu tena</string>
     <string name="done">Sawa</string>

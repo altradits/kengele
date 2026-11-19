@@ -51,7 +51,7 @@ func TestDemoSwahili(t *testing.T) {
 	out := run(t, "demo", "--sw")
 	for _, want := range []string{
 		"Tangaza kwa Bluetooth",
-		"Mesh: simu 2 karibu",
+		"Simu-kwa-simu: simu 2 karibu",
 		"Inasambaza bila kusoma",
 		"A imetangaza msg 0x", "kipande 0/2 ttl 7",
 		"B inasambaza msg 0x", "(bila kusoma)",

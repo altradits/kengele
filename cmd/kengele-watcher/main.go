@@ -60,7 +60,7 @@ Hakuna mtumaji wa SMS bado: SMS inafuata -offline/-down tu.`)
 func cli(args []string, out io.Writer, pass string) error {
 	if len(args) == 0 {
 		usage(out)
-		return errors.New("no command")
+		return errors.New("no command / hakuna amri")
 	}
 	switch args[0] {
 	case "version", "-version", "--version":
@@ -75,21 +75,21 @@ func cli(args []string, out io.Writer, pass string) error {
 		return nil
 	}
 	usage(out)
-	return fmt.Errorf("unknown command %q", args[0])
+	return fmt.Errorf("unknown command %q / amri %q haijulikani", args[0], args[0])
 }
 
 func sealPlan(args []string, out io.Writer, pass string) error {
 	fs := flag.NewFlagSet("seal-plan", flag.ContinueOnError)
-	in := fs.String("in", "", "plain JSON plan")
-	dst := fs.String("out", "", "encrypted plan file to write")
+	in := fs.String("in", "", "plain JSON plan / mpango wa JSON ambao haujasimbwa")
+	dst := fs.String("out", "", "encrypted plan file to write / faili la mpango lililosimbwa la kuandika")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *in == "" || *dst == "" {
-		return errors.New("seal-plan needs -in and -out")
+		return errors.New("seal-plan needs -in and -out / seal-plan inahitaji -in na -out")
 	}
 	if pass == "" {
-		return errors.New(passEnv + " is not set")
+		return errors.New(passEnv + " is not set / haijawekwa")
 	}
 	plain, err := os.ReadFile(*in)
 	if err != nil {
@@ -102,17 +102,17 @@ func sealPlan(args []string, out io.Writer, pass string) error {
 	if err := os.WriteFile(*dst, sealed, 0o600); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "wrote %s; delete %s now, it is not encrypted\n", *dst, *in)
+	fmt.Fprintf(out, "wrote %s; delete %s now, it is not encrypted / imeandika %s; futa %s sasa, haijasimbwa\n", *dst, *in, *dst, *in)
 	return nil
 }
 
 func runCmd(args []string, out io.Writer, pass string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
-	planPath := fs.String("plan", "", "encrypted plan file")
-	every := fs.Duration("tick", 30*time.Second, "how often to check deadlines")
-	offline := fs.Bool("offline", false, "pretend every transport is down (shutdown mode)")
-	downList := fs.String("down", "", "pretend these transports are down, comma separated (nostr, sms)")
-	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs for live mode (empty runs the offline demo) / relays za Nostr kwa modi halisi (tupu inaendesha onyesho)")
+	planPath := fs.String("plan", "", "encrypted plan file / faili la mpango lililosimbwa")
+	every := fs.Duration("tick", 30*time.Second, "how often to check deadlines / kila baada ya muda gani kuangalia kama muda umeisha")
+	offline := fs.Bool("offline", false, "pretend every transport is down (shutdown mode) / iga kwamba kila transport imekatika (hali ya mtandao kukatika)")
+	downList := fs.String("down", "", "pretend these transports are down, comma separated (nostr, sms) / iga kwamba transport hizi zimekatika, zikitenganishwa na koma (nostr, sms)")
+	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs for live mode (empty runs the offline demo) / relay za Nostr kwa modi halisi (tupu inaendesha onyesho)")
 	keyFile := fs.String("key-file", "", "file holding the guardian's hex Nostr private key, for live mode / faili lenye ufunguo wa Nostr wa mlinzi, kwa modi halisi")
 	alertHook := fs.String("alert-hook", "", "executable run once per alarming notice / programu inayoendeshwa kwa kila tahadhari")
 	if err := fs.Parse(args); err != nil {
@@ -134,10 +134,10 @@ func runCmd(args []string, out io.Writer, pass string) error {
 		}
 	}
 	if *planPath == "" {
-		return errors.New("run needs -plan")
+		return errors.New("run needs -plan / run inahitaji -plan")
 	}
 	if pass == "" {
-		return errors.New(passEnv + " is not set")
+		return errors.New(passEnv + " is not set / haijawekwa")
 	}
 	data, err := os.ReadFile(*planPath)
 	if err != nil {
@@ -203,7 +203,7 @@ func loadGuardianKey(warn io.Writer, path string) (*btcec.PrivateKey, error) {
 		return nil, err
 	}
 	if st, err := os.Stat(path); err == nil && st.Mode().Perm()&0o004 != 0 {
-		fmt.Fprintln(warn, "warning: -key-file is world-readable; run chmod 600 on it / onyo: -key-file inasomeka na wote; itumie chmod 600")
+		fmt.Fprintln(warn, "warning: -key-file is world-readable; run chmod 600 on it / onyo: -key-file inasomeka na wote; tumia chmod 600")
 	}
 	b, err := hex.DecodeString(strings.TrimSpace(string(raw)))
 	if err != nil || len(b) != 32 {
@@ -394,9 +394,9 @@ func runLoop(ctx context.Context, plan *schedule.Plan, ticks <-chan time.Time, n
 		}
 	}
 	if opts.live {
-		fmt.Fprintf(out, "kengele-watcher %s: watching %d via Nostr (%d relays) / inafuatilia %d kupitia Nostr (relays %d)\n", version, len(plan.Activists), opts.relays, len(plan.Activists), opts.relays)
+		fmt.Fprintf(out, "kengele-watcher %s: watching %d via Nostr (%d relays) / inafuatilia %d kupitia Nostr (relay %d)\n", version, len(plan.Activists), opts.relays, len(plan.Activists), opts.relays)
 	} else {
-		fmt.Fprintf(out, "kengele-watcher %s: watching %d, no transport yet (not for real use)\n", version, len(plan.Activists))
+		fmt.Fprintf(out, "kengele-watcher %s: watching %d, no transport yet (not for real use) / inafuatilia %d, bado hakuna transport (si kwa matumizi halisi)\n", version, len(plan.Activists), len(plan.Activists))
 	}
 	step := func(t time.Time) {
 		for _, k := range transport.Supported {

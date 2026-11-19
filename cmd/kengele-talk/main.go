@@ -55,11 +55,11 @@ their own keys and name their own relays: -relays is required and has no
 default, and that is the proof nobody central runs it.
 Hakuna seva ya kampuni katikati. Ujumbe umesimbwa na husafiri kupitia Nostr,
 mtandao wa wazi ambao hakuna kampuni moja unaouendesha. Kila upande unaleta
-ufunguo wake na relays zake: -relays inahitajika na haina chaguo-msingi, na
+ufunguo wake na relay zake: -relays inahitajika na haina chaguo-msingi, na
 hiyo ndiyo uthibitisho kwamba hakuna wa kati anayeiuendesha.
 
 A note is at most 86 bytes and travels inside an ordinary check-in event.
-Ujumbe ni baiti 86 jotenuti na husafiri ndani ya check-in ya kawaida.
+Ujumbe ni baiti 86 kwa zaidi na husafiri ndani ya ripoti ya kawaida.
 Not for real use. / Si kwa matumizi halisi.`)
 }
 
@@ -134,7 +134,7 @@ func loadKey(warn io.Writer, path string) (*btcec.PrivateKey, error) {
 		return nil, err
 	}
 	if st, err := os.Stat(path); err == nil && st.Mode().Perm()&0o004 != 0 {
-		fmt.Fprintln(warn, "warning: key file is world-readable; run chmod 600 on it / onyo: faili la ufunguo linasomeka na wote; litumie chmod 600")
+		fmt.Fprintln(warn, "warning: key file is world-readable; run chmod 600 on it / onyo: faili la ufunguo linasomeka na wote; tumia chmod 600")
 	}
 	b, err := hex.DecodeString(strings.TrimSpace(string(raw)))
 	if err != nil || len(b) != 32 {
@@ -227,7 +227,7 @@ func sendCmd(args []string, out, warn io.Writer) error {
 	fs := flag.NewFlagSet("send", flag.ContinueOnError)
 	keyFile := fs.String("key", "", "file holding your hex private key")
 	toFlag := fs.String("to", "", "recipient's 64-hex-character public key")
-	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs (required, no default) / relays za Nostr (inahitajika, haina chaguo-msingi)")
+	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs (required, no default) / relay za Nostr (inahitajika, haina chaguo-msingi)")
 	note := fs.String("note", "", "note to send, at most 86 bytes")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -240,7 +240,7 @@ func sendCmd(args []string, out, warn io.Writer) error {
 	}
 	relays := splitCSV(*relaysFlag)
 	if len(relays) == 0 {
-		return errors.New("send needs -relays: name the relays to use, there is no default / send inahitaji -relays: taja relays za kutumia, hakuna chaguo-msingi")
+		return errors.New("send needs -relays: name the relays to use, there is no default / send inahitaji -relays: taja relay za kutumia, hakuna chaguo-msingi")
 	}
 	key, err := loadKey(warn, *keyFile)
 	if err != nil {
@@ -271,11 +271,11 @@ func sendCmd(args []string, out, warn io.Writer) error {
 	}
 	from := message.PublicKey(key)
 	if res.Queued {
-		fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays, queued for retry / imetumwa kutoka %s kwenda %s: relays %d kati ya %d zimeikubali, imepangwa kutumwa tena\n",
+		fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays, queued for retry / imetumwa kutoka %s kwenda %s: relay %d kati ya %d zimeikubali, imepangwa kutumwa tena\n",
 			fingerprint(from), fingerprint(to), res.Accepted, len(relays), fingerprint(from), fingerprint(to), res.Accepted, len(relays))
 		return nil
 	}
-	fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays / imetumwa kutoka %s kwenda %s: relays %d kati ya %d zimeikubali\n",
+	fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays / imetumwa kutoka %s kwenda %s: relay %d kati ya %d zimeikubali\n",
 		fingerprint(from), fingerprint(to), res.Accepted, len(relays), fingerprint(from), fingerprint(to), res.Accepted, len(relays))
 	return nil
 }
@@ -283,7 +283,7 @@ func sendCmd(args []string, out, warn io.Writer) error {
 func listenCmd(args []string, out, warn io.Writer) error {
 	fs := flag.NewFlagSet("listen", flag.ContinueOnError)
 	keyFile := fs.String("key", "", "file holding your hex private key")
-	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs (required, no default) / relays za Nostr (inahitajika, haina chaguo-msingi)")
+	relaysFlag := fs.String("relays", "", "comma-separated Nostr relay URLs (required, no default) / relay za Nostr (inahitajika, haina chaguo-msingi)")
 	sendersFlag := fs.String("senders", "", "comma-separated sender public keys to accept")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -293,7 +293,7 @@ func listenCmd(args []string, out, warn io.Writer) error {
 	}
 	relays := splitCSV(*relaysFlag)
 	if len(relays) == 0 {
-		return errors.New("listen needs -relays: name the relays to use, there is no default / listen inahitaji -relays: taja relays za kutumia, hakuna chaguo-msingi")
+		return errors.New("listen needs -relays: name the relays to use, there is no default / listen inahitaji -relays: taja relay za kutumia, hakuna chaguo-msingi")
 	}
 	senders, err := parseSenders(*sendersFlag)
 	if err != nil {
@@ -310,7 +310,7 @@ func listenCmd(args []string, out, warn io.Writer) error {
 	defer nt.Close()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	fmt.Fprintf(out, "listening on %d relays for %d senders (Ctrl-C to stop) / inasikiliza kwenye relays %d kutoka watumaji %d (Ctrl-C kusimamisha)\n", len(relays), len(senders), len(relays), len(senders))
+	fmt.Fprintf(out, "listening on %d relays for %d senders (Ctrl-C to stop) / inasikiliza kwenye relay %d kutoka watumaji %d (Ctrl-C kusimamisha)\n", len(relays), len(senders), len(relays), len(senders))
 	for d := range nt.Receive(ctx) {
 		if d.Event == nil {
 			continue

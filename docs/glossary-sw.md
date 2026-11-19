@@ -69,7 +69,7 @@ what the Tanzanian review must check.
 | signed timestamp | muda uliothibitishwa | Saa halisi ya ujumbe iliyotiwa sahihi; inabaki hata ujumbe ukichelewa. / The message's signed original time; survives delay. | Sawa |
 | share (of the secret) | sehemu ya siri | Kipande cha ufunguo kila mlinzi anachoshika; viwili vinafungua tahadhari. / Each guardian's piece of the key; two open the alert. | Sawa |
 | passphrase | kishazi cha siri | Maneno ya kufungua mpango uliohifadhiwa. / Words unlocking the stored plan. | KE: `password` common. |
-| relay | kituo cha kupitishia ujumbe (`relay`) | Kompyuta ya Nostr inayopitisha ujumbe bila kuusoma. / A Nostr computer passing messages without reading them. | `Relay` stays in both; gloss explains it. |
+| relay | kituo cha kupitishia ujumbe (`relay`) | Kompyuta ya Nostr inayopitisha ujumbe bila kuusoma. / A Nostr computer passing messages without reading them. | `Relay` stays in both, also in the plural (`relay tatu`, never `relays`); gloss explains it. |
 | Nostr | Nostr (mtandao bila seva kuu) | Mtandao unaotuma ujumbe bila kampuni moja kuudhibiti. / Messaging with no single company in control. | Same in both; never translated. |
 | SMS fallback | SMS mbadala | SMS iliyosimbwa inapotumika mtandao ukikatika. / Encrypted SMS used when the internet is cut. | `SMS` ordinary in both. |
 | shutdown mode | hali ya mtandao kukatika | Kengele inasimama kusubiri mtandao urudi badala ya kulia uongo. / Kengele waits for the network instead of false-alarming. | Sawa |
@@ -80,6 +80,16 @@ what the Tanzanian review must check.
 | typed place | mahali ulipoandika | Mahali unapoandika mwenyewe unaporipoti; si GPS. / The place you type yourself when reporting; never GPS. | Sawa |
 | legal fund | mfuko wa kisheria | Bitcoin ya kumlipa wakili ukiwa umeshikwa. / Bitcoin to pay the lawyer while detained. | Sawa |
 | donation | mchango | Pesa watu wanatoa kusaidia, kwa anwani za walinzi. / Money people give to help, via guardians' addresses. | Sawa |
+| mesh carry | kubeba simu-kwa-simu | Kubeba tahadhari iliyofungwa kutoka simu moja hadi nyingine bila mtandao; simu inayobeba haiwezi kuisoma. / Carrying a sealed alert phone to phone with no network; the carrying phone cannot read it. | Sawa [UNREVIEWED] |
+| relay settings | mipangilio ya relay | Orodha ya relay unazotumia na idadi inayopaswa kukubali. / The relays you use and how many must accept. | `Relay` stays in both. [UNREVIEWED] |
+| SMS opt-in | hiari ya SMS | Kuchagua mwenyewe kuwasha SMS mbadala kwa kila mlinzi; imezimwa hadi uiwashe. / Choosing yourself to turn SMS fallback on per guardian; off until you turn it on. | Sawa [UNREVIEWED] |
+| inbox (alarm inbox) | kikasha cha tahadhari | Mahali mlinzi anapopokea na kufungua tahadhari. / Where a guardian receives and opens alarms. | KE speech: `inbox`. [UNREVIEWED] |
+| kit (enrolment kit) | kifurushi (cha usajili) | Funguo, sehemu ya siri na tahadhari iliyofungwa ambayo mlinzi hupokea ili aweze kuthibitisha. / The keys, secret share and sealed alert a guardian receives in order to confirm. | [UNREVIEWED] — needs a native-speaker word; do not confuse with the gift wrap below. |
+| release / publish (alert) | kutangaza tahadhari | Kuweka tahadhari hadharani baada ya walinzi kuthibitisha. / Putting the alert in public after the guardians confirm. | Sawa [UNREVIEWED] |
+| queued (for retry) | imepangwa kutumwa tena | Ujumbe haukufika; simu itajaribu tena yenyewe. / The message did not arrive; the phone retries by itself. | Sawa [UNREVIEWED] |
+| gift wrap (sealed) | kifurushi kilichofungwa | Ujumbe uliosimbwa ndani ya Nostr ili relay isiusome. / A message encrypted inside Nostr so the relays cannot read it. | KE speech: `gift wrap`. [UNREVIEWED] |
+| queue | foleni | Ujumbe unaosubiri kutumwa mtandao ukipatikana. / Messages waiting to be sent when a network appears. | Sawa [UNREVIEWED] |
+| fragment | kipande | Sehemu moja ya ujumbe unaosafiri vipande vipande. / One piece of a message travelling in pieces. | Sawa [UNREVIEWED] |
 
 ## Violezo vya tahadhari — alert templates
 
@@ -140,3 +150,14 @@ Usishiriki tena tahadhari ya awali. / Do not share the earlier alert any more.
    push notifications, or standard Swahili everywhere.
 3. Lawyer contact format in the public alert (name only vs name + number)
    needs a threat-model decision before real use.
+4. Relay verb: the app and tools use `-sambaza` (`inasambaza`,
+   `husambaza`) for mesh/Nostr relaying while the relay noun gloss
+   uses `-pitisha` (`kupitishia`). Confirm which verb fits where, or
+   whether both are fine in different spots.
+5. `kifurushi` now names both the enrolment kit and the sealed gift
+   wrap. Confirm, or supply a distinct word for one of them.
+6. Borrowings used in tools and strings — `transport`, `mesh` (for the
+   Meshtastic mesh), `nodi`, `datagramu`, `heksi`, `modi`, `koma` —
+   acceptable, or do they need coinages?
+7. All rows marked [UNREVIEWED] above need the Tanzanian review
+   before use.

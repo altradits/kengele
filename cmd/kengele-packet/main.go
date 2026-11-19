@@ -72,6 +72,6 @@ func cli(args []string, out io.Writer) error {
 	if err := os.WriteFile(*dst, []byte(md), 0o600); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "wrote %s; a Kenyan advocate must review it before any real use / ameandika %s; wakili wa Kenya lazima apitie kabla ya matumizi halisi\n", *dst, *dst)
+	fmt.Fprintf(out, "wrote %s; a Kenyan advocate must review it before any real use / imeandika %s; wakili wa Kenya lazima apitie kabla ya matumizi halisi\n", *dst, *dst)
 	return nil
 }

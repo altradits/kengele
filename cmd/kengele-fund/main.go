@@ -61,9 +61,9 @@ func cli(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("kengele-fund", flag.ContinueOnError)
 	fs.SetOutput(out)
 	activist := fs.String("activist", "", "activist tpub / tpub ya mwanaharakati")
-	g1 := fs.String("guardian1", "", "guardian 1 tpub / tpub ya mlezi 1")
-	g2 := fs.String("guardian2", "", "guardian 2 tpub / tpub ya mlezi 2")
-	g3 := fs.String("guardian3", "", "guardian 3 tpub / tpub ya mlezi 3")
+	g1 := fs.String("guardian1", "", "guardian 1 tpub / tpub ya mlinzi 1")
+	g2 := fs.String("guardian2", "", "guardian 2 tpub / tpub ya mlinzi 2")
+	g3 := fs.String("guardian3", "", "guardian 3 tpub / tpub ya mlinzi 3")
 	network := fs.String("network", "signet", "signet, testnet or regtest (mainnet refused) / signet, testnet au regtest (mtandao mkuu haukubaliwi)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -83,7 +83,7 @@ func cli(args []string, out io.Writer) error {
 	fmt.Fprintln(out, "key fingerprints / alama za funguo:")
 	fmt.Fprintf(out, "  activist / mwanaharakati: %s\n", w.Fingerprints[0])
 	for i := 1; i < 4; i++ {
-		fmt.Fprintf(out, "  guardian %d / mlezi %d: %s\n", i, i, w.Fingerprints[i])
+		fmt.Fprintf(out, "  guardian %d / mlinzi %d: %s\n", i, i, w.Fingerprints[i])
 	}
 	fmt.Fprintln(out, "signet only; verify in Sparrow or Bitcoin Core before use / signet pekee; thibitisha kwenye Sparrow au Bitcoin Core kabla ya kutumia")
 	return nil
