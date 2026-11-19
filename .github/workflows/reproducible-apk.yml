@@ -1,10 +1,11 @@
 name: reproducible-apk
 
 # Demonstrates the reproducible-build check from docs/distribution.md: build
-# the release APK twice from a clean tree and fail when the two hashes differ.
+# both release APKs twice from a clean tree and fail when any hash differs.
+# The release builds here are unsigned (no signing config); signatures are
+# applied offline per the doc and verified separately, never by hash.
 # Tolerates android/ not existing yet (it lands in #15): without it the job
-# passes with a skip notice instead of failing. Never signs with the release
-# key; CI builds the unsigned release APK with the debug key only.
+# passes with a skip notice instead of failing.
 
 on:
   push:
@@ -67,15 +68,18 @@ jobs:
             echo "::error::No distributionSha256Sum pinned in $props. Refusing to run an unverified wrapper."
             exit 1
           fi
-          url="$(grep '^distributionUrl=' "$props" | cut -d= -f2-)"
+          # The wrapper deletes its zip after unpacking, so verify the bytes
+          # at the pinned URL directly instead of the wrapper's cache dir.
+          url="$(grep '^distributionUrl=' "$props" | cut -d= -f2- | tr -d '\\')"
           echo "Pinned wrapper distribution: $url"
-          echo "Pinned SHA-256: $pinned"
-          sh android/gradlew --version --no-daemon
-          actual="$(find "$HOME/.gradle/wrapper/dists" -name 'gradle-*.zip' -exec sha256sum {} + | head -n 1 | cut -d' ' -f1)"
+          curl -sSL -o /tmp/repro/gradle-dist.zip "$url"
+          actual="$(sha256sum /tmp/repro/gradle-dist.zip | cut -d' ' -f1)"
+          rm -f /tmp/repro/gradle-dist.zip
           if [ "$actual" != "$pinned" ]; then
-            echo "::error::Gradle wrapper checksum mismatch. Expected $pinned, got ${actual:-nothing}."
+            echo "::error::Gradle wrapper checksum mismatch. Expected $pinned, got $actual."
             exit 1
           fi
+          echo "Wrapper checksum verified: $actual"
 
       - name: Build twice and compare hashes
         if: steps.android.outputs.present == 'true'
@@ -86,16 +90,16 @@ jobs:
           mkdir -p /tmp/repro
           for n in 1 2; do
             rm -rf "/tmp/repro/build$n"
-            git worktree list >/dev/null 2>&1 || true
             cp -a "$GITHUB_WORKSPACE" "/tmp/repro/build$n"
-            (cd "/tmp/repro/build$n" && sh android/gradlew :app:assembleRelease --no-daemon --rerun-tasks)
+            (cd "/tmp/repro/build$n" && sh android/gradlew :app:assembleRelease :guardian:assembleRelease --no-daemon --rerun-tasks)
             ls "/tmp/repro/build$n"/android/app/build/outputs/apk/release/*.apk
-            (cd "/tmp/repro/build$n" && sha256sum android/app/build/outputs/apk/release/*.apk) > "/tmp/repro/hashes$n.txt"
+            ls "/tmp/repro/build$n"/android/guardian/build/outputs/apk/release/*.apk
+            (cd "/tmp/repro/build$n" && sha256sum android/app/build/outputs/apk/release/*.apk android/guardian/build/outputs/apk/release/*.apk) > "/tmp/repro/hashes$n.txt"
             echo "--- build $n hashes ---"
             cat "/tmp/repro/hashes$n.txt"
           done
           # Compare hash values only; paths differ between the two work dirs.
-          if [ "$(cut -d' ' -f1 /tmp/repro/hashes1.txt)" != "$(cut -d' ' -f1 /tmp/repro/hashes2.txt)" ]; then
+          if [ "$(cut -d' ' -f1 /tmp/repro/hashes1.txt | sha256sum)" != "$(cut -d' ' -f1 /tmp/repro/hashes2.txt | sha256sum)" ]; then
             echo "::error::Reproducible-build check FAILED: the two builds produced different APK hashes."
             diff /tmp/repro/hashes1.txt /tmp/repro/hashes2.txt || true
             exit 1

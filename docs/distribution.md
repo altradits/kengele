@@ -41,12 +41,12 @@ reason).
 
 ## 3. F-Droid metadata plan
 
-Target package id: `org.altradits.kengele` (placeholder until #15 fixes it).
+Target package ids: `com.altradits.kengele` (activist app) and `com.altradits.kengele.guardian` (guardian app), as landed in #15 and follow-ups.
 
 - **Build mode:** F-Droid builds from source. Kengele additionally publishes
   its own reproducible-build check (§4) so F-Droid's binary can be cross-checked
   against an independent rebuild.
-- **Metadata:** `metadata/org.altradits.kengele.yml` in fdroiddata (or a
+- **Metadata:** `metadata/com.altradits.kengele.yml` and `metadata/com.altradits.kengele.guardian.yml` in fdroiddata (or a
   `fastlane/metadata/android/` tree in this repo) with `Categories: [Security]`,
   `UpdateCheckMode: Tags`, per-release changelogs, and a pinned commit per
   version code.
@@ -84,11 +84,12 @@ Reproduce the release APK from a tagged commit with only pinned inputs:
    absolute paths, dependency version ranges, parallel file ordering).
 
 CI demonstrates this on every push and pull request touching `android/` (see
-`.github/workflows/reproducible-apk.yml`): it builds twice and fails when the
-two hashes differ. Until #15 lands `android/`, the job passes with a skip
-notice instead of failing. What CI compares is the **unsigned** release APK
-built with the debug key; the release signature is applied later (§5), and
-signature bytes are verified separately, never by hash equality with CI output.
+`.github/workflows/reproducible-apk.yml`): it builds both release APKs twice
+and fails when any hash differs. Until #15 lands `android/`, the job passes
+with a skip notice instead of failing. What CI compares is the **unsigned**
+release APK (neither app configures `signingConfigs` yet); the release
+signature is applied later (§5), and signature bytes are verified separately,
+never by hash equality with CI output.
 
 ## 5. APK signing-key custody
 
