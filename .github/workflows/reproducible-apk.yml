@@ -72,6 +72,7 @@ jobs:
           # at the pinned URL directly instead of the wrapper's cache dir.
           url="$(grep '^distributionUrl=' "$props" | cut -d= -f2- | tr -d '\\')"
           echo "Pinned wrapper distribution: $url"
+          mkdir -p /tmp/repro
           curl -sSL -o /tmp/repro/gradle-dist.zip "$url"
           actual="$(sha256sum /tmp/repro/gradle-dist.zip | cut -d' ' -f1)"
           rm -f /tmp/repro/gradle-dist.zip
