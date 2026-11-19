@@ -160,3 +160,72 @@ User-facing strings for the app and install pages, in English and Swahili
   hashes, and skips cleanly until `android/` exists (#15).
 - [ ] Independent second rebuild matches (needs #15's app; future work).
 - [ ] F-Droid submission (explicitly out of scope; future issue).
+
+## Appendix A (2026-11-19): local reproducible-build demonstration
+
+### Run 1 (sandboxed): blocked before compiling, audit findings kept
+
+> Record of a sandboxed local run of the issue #17 demonstration. The two
+> builds could not run in the sandbox (Gradle's local socket was denied);
+> the unblocked re-run below supersedes its pending hashes. The five
+> workflow/doc findings stood and were fixed separately (see resolutions).
+
+Environment: commit `c995b6b`, macOS aarch64,
+`JAVA_HOME=/tmp/kengele-toolchain/jdk17/Contents/Home` (Temurin 17.0.21+9),
+`ANDROID_HOME=/tmp/kengele-android-sdk` (platform android-34, build-tools
+34.0.0), `GRADLE_USER_HOME=/tmp/kengele-gradle`,
+Gradle 8.7 from `/tmp/kengele-toolchain/gradle-8.7` (`android/gradlew` did
+not exist yet, so the toolchain binary stood in for the wrapper).
+
+Findings (all resolved after this run):
+
+1. Workflow skipped despite the app existing: the `present` gate requires
+   `android/gradlew`, which #15 did not vendor, so CI silently skipped
+   instead of checking the real app. **Fixed: wrapper vendored
+   (`android/gradlew`, jar, properties).**
+2. Missing `distributionSha256Sum`: both the workflow's verify step and §4
+   step 3 assumed a pinned wrapper checksum that did not exist.
+   **Fixed: pinned
+   `544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d`,
+   verified against a fresh vendor download.**
+3. Stale package id: §3 said `org.altradits.kengele` "until #15 fixes it";
+   #15 landed `com.altradits.kengele`. **Fixed, both app ids.**
+4. Self-contradictory §4 wording: "the **unsigned** release APK built with
+   the debug key". **Fixed: unsigned, no `signingConfigs` yet.**
+5. Dead workflow line: `git worktree list >/dev/null 2>&1 || true`.
+   **Fixed: removed.** The re-run additionally found the build step
+   missing `-p android`, which would fail on a clean tree; **fixed.**
+
+### Run 2 (unblocked): MATCH on both release APKs
+
+Environment: commit `8ea7802`, `SOURCE_DATE_EPOCH=1795063072`
+(`git log -1 --format=%ct`), same toolchain/SDK as Run 1, `TZ=UTC`,
+`LC_ALL=C.UTF-8`. Two pristine trees via `git archive HEAD` (equivalent
+to the workflow's fresh-checkout copies), built with the vendored
+wrapper exactly as the fixed workflow does:
+
+```
+(cd buildN && sh android/gradlew -p android :app:assembleRelease \
+  :guardian:assembleRelease --no-daemon --rerun-tasks)
+```
+
+Result: **MATCH.** Both builds succeeded; the SHA-256 of each APK is
+identical across the two builds:
+
+```
+build 1 app:      9cba5179b1580888c6d3e896022bda965bd92ab4c8b8fffa34af8610c5af32e4
+build 1 guardian: 072fc6f300db3b1b15f8d8629fb81ab4a1654eb33cacb0a1c5ae4dbe40fff466
+build 2 app:      9cba5179b1580888c6d3e896022bda965bd92ab4c8b8fffa34af8610c5af32e4
+build 2 guardian: 072fc6f300db3b1b15f8d8629fb81ab4a1654eb33cacb0a1c5ae4dbe40fff466
+```
+
+Whole-file hashes match, so no inner-APK diff was needed.
+
+This proves: both release builds are deterministic under a fixed
+toolchain and `SOURCE_DATE_EPOCH` — timestamps, absolute paths and file
+ordering are under control. It does **not** prove: anything about the
+release signature (§5 offline ceremony still ahead — these APKs are
+unsigned); supply-chain integrity beyond the wrapper pin (dependencies
+are pinned by version in `libs.versions.toml`, not by hash); or
+F-Droid acceptance (§8). Two builds on one machine are self-consistency,
+not the independent second rebuild §8 asks for.
