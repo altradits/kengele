@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ishara ya hatari: kubonyeza kitufe mara 5 (threat model, sehemu ya 7). -->
+    <string name="menu_panic_gesture">Ishara ya hatari</string>
+    <string name="panic_gesture_title">Ishara ya hatari</string>
+    <string name="panic_gesture_explainer">Bonyeza kitufe cha kuwasha mara 5 katika sekunde 10 ili kufungua uthibitisho wa hatari. Husikiliza wakati wa kipindi cha ulinzi tu, na hakuna kinachotumwa hadi uguse Ndiyo. Imewashwa sasa; izime hapa ikiwa mazoezi yanaonyesha inaleta tahadhari za uongo.</string>
+    <string name="panic_gesture_status_on">Ishara ya hatari imewashwa.</string>
+    <string name="panic_gesture_status_off">Ishara ya hatari imezimwa.</string>
+    <string name="panic_gesture_turn_on">Washa ishara ya hatari</string>
+    <string name="panic_gesture_turn_off">Zima ishara ya hatari</string>
+    <string name="panic_gesture_armed">Inasikiliza sasa: kipindi chako cha ulinzi kinaendelea.</string>
+    <string name="panic_gesture_idle_no_window">Haisikilizi: hakuna kipindi cha ulinzi kinachoendelea.</string>
+    <string name="panic_gesture_idle_off">Haisikilizi: ishara imezimwa. Kitufe cha Hatari bado kinafanya kazi.</string>
+    <string name="panic_gesture_service_name">Ishara ya hatari</string>
+    <string name="panic_gesture_service_text">Inasikiliza mibonyezo 5 ya kitufe wakati wa kipindi cha ulinzi.</string>
+    <string name="panic_gesture_alert_title">Ishara ya hatari imetumika</string>
+    <string name="panic_gesture_alert_text">Gusa ili kuthibitisha au kughairi tahadhari ya hatari.</string>
+</resources>

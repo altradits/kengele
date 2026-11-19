@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.altradits.kengele.checkin.CheckInManager
 import com.altradits.kengele.guardian.InMemoryGuardianStore
+import com.altradits.kengele.panic.PanicGestureService
 import com.altradits.kengele.nostr.DualCheckInSender
 import com.altradits.kengele.nostr.NostrCheckInSender
 import com.altradits.kengele.nostr.NostrStatusStrings
@@ -49,6 +50,9 @@ class MainActivity : AppCompatActivity() {
         Ui.addButton(column, getString(R.string.menu_panic)) {
             confirmPanic()
         }
+        Ui.addButton(column, getString(R.string.menu_panic_gesture)) {
+            startActivity(Intent(this, com.altradits.kengele.panic.PanicGestureActivity::class.java))
+        }
         Ui.addButton(column, getString(R.string.menu_mesh)) {
             startActivity(Intent(this, com.altradits.kengele.mesh.MeshStatusActivity::class.java))
         }
@@ -61,6 +65,16 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this)
         scroll.addView(column)
         setContentView(scroll)
+        // Re-arms the five-press gesture listener after a reboot or an OS
+        // kill; a no-op unless a watch window is active and the switch on.
+        PanicGestureService.startIfArmed(this)
+        if (intent.getBooleanExtra(EXTRA_PANIC_CONFIRM, false)) confirmPanic()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_PANIC_CONFIRM, false)) confirmPanic()
     }
 
     override fun onResume() {
@@ -104,8 +118,9 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.need_setup, Toast.LENGTH_LONG).show()
             return
         }
-        // Deliberate-gesture trigger (5 power presses) still to come; this
-        // sends from the guarded confirmation above (#15 scope).
+        // Guarded sender for both trigger paths: the Panic button and the
+        // five-press gesture both land on confirmPanic() above; nothing
+        // here sends without that confirmation (#15 scope).
         val guardianKeys = guardians.map { InMemoryGuardianStore.bytesToHex(it) }
         val batchKind = SmsBatchKind.forPanic()
         val directory = StoreSmsDirectory(AppState.sms) { guardianKeys }
@@ -158,5 +173,10 @@ class MainActivity : AppCompatActivity() {
             guardians,
         )
         Toast.makeText(this, UiStrings.res(outcome.ui.messageKey), Toast.LENGTH_LONG).show()
+    }
+
+    companion object {
+        /** Brings up the panic confirmation dialog instead of the home screen. */
+        const val EXTRA_PANIC_CONFIRM = "com.altradits.kengele.PANIC_CONFIRM"
     }
 }

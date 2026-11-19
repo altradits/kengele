@@ -46,6 +46,8 @@ class WatchWindowActivity : AppCompatActivity() {
             // A fresh window arms the mesh radio; the service itself checks
             // permissions and Bluetooth before starting.
             com.altradits.kengele.mesh.MeshService.startIfWindowActive(this)
+            // ... and the five-press gesture listener (no-op if switched off).
+            com.altradits.kengele.panic.PanicGestureService.startIfArmed(this)
             Toast.makeText(this, R.string.window_saved, Toast.LENGTH_SHORT).show()
             finish()
         }

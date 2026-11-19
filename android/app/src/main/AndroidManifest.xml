@@ -29,6 +29,9 @@
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Five-press gesture listener: screen on/off needs no permission;
+         the special-use foreground-service type keeps it alive. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
@@ -53,11 +56,24 @@
         <activity android:name=".mesh.MeshStatusActivity" android:exported="false" />
         <activity android:name=".sms.SmsSettingsActivity" android:exported="false" />
         <activity android:name=".nostr.NostrSettingsActivity" android:exported="false" />
+        <activity android:name=".panic.PanicGestureActivity" android:exported="false" />
         <service
             android:name=".mesh.MeshService"
             android:foregroundServiceType="connectedDevice"
             android:exported="false" />
         <receiver android:name=".mesh.MeshRearmReceiver" android:exported="false" />
+        <!-- Gesture receiver is registered dynamically by the service
+             (SCREEN_ON/OFF never reach manifest receivers) and the
+             listener only runs inside the watch window. -->
+        <service
+            android:name=".panic.PanicGestureService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Listens for 5 power-button presses during the watch window to offer the panic confirmation." />
+        </service>
+        <receiver android:name=".panic.PanicRearmReceiver" android:exported="false" />
         <receiver
             android:name=".sms.SmsReceiver"
             android:exported="true"

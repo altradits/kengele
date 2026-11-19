@@ -3,13 +3,12 @@ package com.altradits.kengele.panic
 import com.altradits.kengele.message.KengeleMessage
 
 /**
- * Panic trigger stub (threat model docs/threat-model.md, section 7: the
- * trigger needs a deliberate gesture, e.g. 5 power-button presses, that
- * drills show is hard to fire by accident).
+ * Panic event builder (threat model docs/threat-model.md, section 7).
  *
- * This skeleton exposes event building only. Still missing before any real
- * use: the system-level gesture, the no-questions confirmation screen, and
- * the transports that carry the panic out (issues #8, #9).
+ * The system-level trigger is the five-press gesture ([PanicGesture],
+ * fed by [PanicGestureReceiver] while [PanicGestureService] is armed);
+ * both it and the Panic button land on the confirmation dialog in
+ * `MainActivity`, which sends over Nostr plus the SMS fallback.
  */
 object PanicTrigger {
     /** Builds the panic event; empty body, like every panic. */
