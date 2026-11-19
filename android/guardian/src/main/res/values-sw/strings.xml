@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele Mlinzi</string>
+
+    <string name="menu_enroll">Sajili kifurushi</string>
+    <string name="menu_inbox">Kikasha cha tahadhari</string>
+    <string name="menu_confirm">Thibitisha tahadhari</string>
+    <string name="menu_all_clear">Yuko salama</string>
+    <string name="menu_publish">Tangaza tahadhari</string>
+    <string name="menu_settings">Mipangilio ya relay</string>
+
+    <string name="transport_note">Tahadhari hufika kupitia relay zako za Nostr zikiweshwa, au kama maandishi yaliyonakiliwa. Hakuna kinachotoka kwenye simu chenyewe.</string>
+    <string name="no_names_note">Funguo tu. Programu hii haihifadhi majina, namba wala picha.</string>
+
+    <string name="status_not_enrolled">Hujasajiliwa. Anza na “Sajili kifurushi”.</string>
+    <string name="status_line">Tahadhari %1$d · Uthibitisho %2$d kati ya %3$d · Yuko salama %4$d kati ya %3$d</string>
+    <string name="status_activist_says_safe">Mwanaharakati ametuma ujumbe wa yuko salama. Thibitisha kwa sauti au video kabla ya kuthibitisha salama.</string>
+    <string name="status_released">Tahadhari imetangazwa kwa uthibitisho %1$d.</string>
+
+    <string name="enroll_title">Sajili kifurushi</string>
+    <string name="this_device_key">Ufunguo wa mlinzi wa simu hii (mpe mwanaharakati):</string>
+    <string name="activist_key_hint">Ufunguo wa mwanaharakati, herufi 64 za heksi</string>
+    <string name="guardian_key_hint">Ufunguo wa mlinzi, herufi 64 za heksi</string>
+    <string name="threshold_hint">Idadi ya kuthibitisha k (2 au zaidi)</string>
+    <string name="share_hint">Sehemu ya siri ya mlinzi huyu, herufi 66 za heksi (inahitajika kuthibitisha)</string>
+    <string name="add">Ongeza</string>
+    <string name="remove">Ondoa</string>
+    <string name="save">Hifadhi</string>
+    <string name="guardians_count">Walinzi: %1$d</string>
+    <string name="invalid_key">Ufunguo huo si sahihi.</string>
+    <string name="invalid_share">Sehemu hiyo ya siri si herufi 66 za heksi.</string>
+    <string name="invalid_enrollment">Kifurushi kinahitaji ufunguo wa mwanaharakati, funguo 2–10 tofauti za walinzi, na idadi ya kuthibitisha k ya angalau 2.</string>
+    <string name="enrolled">Kifurushi kimesajiliwa.</string>
+
+    <string name="inbox_title">Kikasha cha tahadhari</string>
+    <string name="inbox_hint">Bandika tukio la herufi 304 hapa</string>
+    <string name="inbox_open">Fungua tukio</string>
+    <string name="inbox_result_count">Imehesabiwa. %1$s</string>
+    <string name="inbox_ignored">Imepuuzwa: %1$s</string>
+    <string name="inbox_bad_text">Maandishi hayo si tukio sahihi.</string>
+
+    <string name="confirm_title">Thibitisha tahadhari</string>
+    <string name="confirm_explainer">Uthibitisho wako hubeba sehemu yako ya siri kwa walinzi wengine tu, kamwe kwa mwanaharakati. Kwa %1$d kati ya %2$d tahadhari inatangazwa.</string>
+    <string name="confirm_build">Tengeneza uthibitisho</string>
+    <string name="confirm_needs_share">Sajili sehemu ya siri ya mlinzi huyu kwanza.</string>
+    <string name="confirm_done">Uthibitisho umehesabiwa. %1$s</string>
+    <string name="sealed_texts_title">Tuma kila ujumbe kwa mlinzi mmoja:</string>
+
+    <string name="clear_title">Yuko salama</string>
+    <string name="clear_explainer">Walinzi %1$d pamoja tu wanaweza kusitisha tahadhari, kila mmoja baada ya simu ya sauti au video. Ujumbe wa mwanaharakati mwenyewe haumalizi chochote peke yake.</string>
+    <string name="check_called">Nimezungumza na mwanaharakati kwa simu ya sauti au video</string>
+    <string name="check_free">Wamethibitisha wako huru na salama</string>
+    <string name="check_no_coercion">Sikuona dalili za kulazimishwa</string>
+    <string name="method_voice">Simu ya sauti</string>
+    <string name="method_video">Simu ya video</string>
+    <string name="clear_build">Tengeneza ujumbe wa yuko salama</string>
+    <string name="clear_needs_checklist">Weka alama kwenye visanduku vyote na uchague sauti au video kwanza.</string>
+    <string name="clear_done">Ujumbe wa yuko salama umehesabiwa. %1$s</string>
+
+    <string name="settings_title">Mipangilio ya relay</string>
+    <string name="relay_hint">Anwani ya relay, mfano wss://relay.example</string>
+    <string name="relays_count">Relay: %1$d</string>
+    <string name="min_accepted_hint">Relay zinazopaswa kukubali (1 au zaidi)</string>
+    <string name="invalid_relay">Anwani hiyo ya relay si sahihi.</string>
+    <string name="invalid_min_accepted">Angalau relay 1 lazima ikubali.</string>
+    <string name="settings_saved">Mipangilio imehifadhiwa.</string>
+
+    <string name="nostr_listening">Inasikiliza kwenye relay %1$d kati ya %2$d.</string>
+    <string name="nostr_none">Hakuna relay — ongeza kwenye Mipangilio, au bandika matukio hapa chini.</string>
+    <string name="nostr_send_none">Hakuna relay — ziweke kwenye Mipangilio, au tuma ujumbe mwenyewe.</string>
+    <string name="nostr_from_net">Kutoka mtandaoni. %1$s</string>
+    <string name="nostr_sent_all">Zote %1$d zimefika kwenye relay.</string>
+    <string name="nostr_sent_partial">%1$d kati ya %2$d zimefika; zilizobaki zitajaribu tena.</string>
+
+    <string name="mesh_links">Viungo hai: %1$d</string>
+    <string name="mesh_relayed">Datagramu zilizosambazwa: %1$d</string>
+    <string name="mesh_off">Mtandao umezimwa.</string>
+    <string name="mesh_unavailable">Bluetooth LE haipatikani kwenye simu hii.</string>
+    <string name="mesh_from_mesh">Kupitia mtandao. %1$s</string>
+    <string name="mesh_perm_title">Ruhusa ya Bluetooth</string>
+    <string name="mesh_perm_rationale">Kengele hutumia Bluetooth kupokea tahadhari zilizofungwa kutoka simu zilizo karibu. Haitumii GPS kamwe.</string>
+    <string name="mesh_perm_allow">Endelea</string>
+    <string name="mesh_perm_denied">Ruhusa ya Bluetooth imekataliwa. Mtandao umezima.</string>
+
+    <string name="release_title">Tangaza tahadhari</string>
+    <string name="release_found_safe_title">Tangaza ujumbe wa yuko salama</string>
+    <string name="release_explainer">Walinzi wamethibitisha. Hii ndiyo tahadhari ambayo mwanaharakati aliandika, imefunguliwa kwa sehemu zao za siri. Iangalie, kisha itangaze mara moja.</string>
+    <string name="release_safe_explainer">Walinzi wamesitisha tahadhari baada ya tahadhari kutangazwa. Ujumbe huu unaeleza kila mtu kuwa mwanaharakati amepatikana salama.</string>
+    <string name="release_confirmed_line">Imethibitishwa na walinzi %1$d · Tahadhari %2$d</string>
+    <string name="release_alert_pub_label">Ufunguo wa tahadhari (waandishi huhakiki ujumbe kwa ufunguo huu):</string>
+    <string name="release_note_label">Ujumbe wa umma:</string>
+    <string name="release_publish">Tangaza</string>
+    <string name="release_confirm_title">Uitangaze tahadhari hii?</string>
+    <string name="release_confirm_message">Hii inatuma tahadhari kwenye relay zako za Nostr ili kila mtu aione. Haiwezi kutenduliwa.</string>
+    <string name="release_confirm_safe_title">Uutangaze ujumbe huu wa yuko salama?</string>
+    <string name="release_confirm_safe_message">Hii inaeleza kila mtu aliyeona tahadhari kuwa mwanaharakati amepatikana salama. Haiwezi kutenduliwa.</string>
+    <string name="release_published">Imetangazwa: imekubaliwa na relay %1$d kati ya %2$d. Ujumbe:</string>
+    <string name="release_failed">Hakuna relay iliyokubali. Angalia Mipangilio na ujaribu tena.</string>
+    <string name="release_no_relays">Hakuna relay — ziweke kwenye Mipangilio kwanza.</string>
+    <string name="release_nothing">Hakuna cha kutangaza.</string>
+    <string name="release_needs_kit">Sajili tahadhari iliyofungwa kwanza: bila hiyo simu hii haiwezi kufungua tangazo.</string>
+    <string name="alert_pub_hint">Ufunguo wa tahadhari, herufi 64 za heksi (unahitajika kutangaza)</string>
+    <string name="ciphertext_hint">Tahadhari iliyofungwa, heksi (inahitajika kutangaza)</string>
+    <string name="invalid_alert_pub">Ufunguo huo wa tahadhari si sahihi.</string>
+    <string name="invalid_ciphertext">Tahadhari hiyo iliyofungwa si heksi sahihi.</string>
+
+    <string name="need_enrollment">Sajili kifurushi kwanza.</string>
+    <string name="cancel">Ghairi</string>
+    <string name="done">Sawa</string>
+    <string name="unknown_error">Kuna tatizo.</string>
+</resources>

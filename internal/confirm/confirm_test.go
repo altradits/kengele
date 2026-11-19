@@ -446,6 +446,39 @@ func TestFoundSafeAfterRelease(t *testing.T) {
 	mustErr(t, o, err, ErrSpent)
 }
 
+func TestDrillNoteIsMarked(t *testing.T) {
+	f := newFixture(t, 3, 2)
+	tl := f.tally(t, 0)
+	expect(t, None)(f.confirm(t, tl, 0, 1, t0, t0))
+	rel := expect(t, Release)(f.confirm(t, tl, 2, 1, t0, t0))
+
+	pub := &recPub{}
+	st := Status{LastCheckIn: t0.Add(-3 * time.Hour), Place: "Kisumu law courts"}
+	ev, err := DrillPublish(context.Background(), pub, rel, st, "", t0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(ev.Content, "DRILL: ") {
+		t.Fatalf("drill note lacks DRILL prefix:\n%s", ev.Content)
+	}
+	if ev.Tags.FindWithValue("kengele", "drill") == nil {
+		t.Fatal("drill note lacks the drill tag")
+	}
+	checkNote(t, ev, f.alertKey, "Amina W.")
+
+	// The real path stays unmarked.
+	real, err := Publish(context.Background(), pub, rel, st, "", t0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(real.Content, "DRILL: ") {
+		t.Fatal("real note carries a drill prefix")
+	}
+	if real.Tags.FindWithValue("kengele", "drill") != nil {
+		t.Fatal("real note carries a drill tag")
+	}
+}
+
 func TestAllClearRaces(t *testing.T) {
 	// k guardian all-clears first, confirmation after: the confirmation is
 	// stale and nothing goes public.

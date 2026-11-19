@@ -1,0 +1,70 @@
+{
+  "generator": "openbao shamir (go run; shares use crypto/rand)",
+  "vectors": [
+    {
+      "name": "k2-of-n3",
+      "secret_hex": "40a91d408407656dd81e67f1010c00105f8a7250349d3075a59f71baffbbd575",
+      "parts": 3,
+      "threshold": 2,
+      "shares_hex": [
+        "5d5174cff57006740b2fbdbf7fd3fbe22586dadc7e0f2bb9951c79843c89f77e06",
+        "08cc6ea26080b367a3b6055a9fb1d9d0834c480edd371b6790bbf56897afd24d63",
+        "299ccbc52ab791106aebf89c9c823a07d6b64cda4d7147a45526597c1d417f521e"
+      ]
+    },
+    {
+      "name": "k2-of-n2",
+      "secret_hex": "5cb444420a103338d8c39c564113c4753741fe261e2db8eacd53c0a336573bfb",
+      "parts": 2,
+      "threshold": 2,
+      "shares_hex": [
+        "a2c52f8807a99b9ee9e3a9496fe0d73e40d1699ad6803f1905c4efdb7e7c7957e1",
+        "9be1560ba4e303b369b1e82e887ae81548abc4eab822bb836b69f39d43a1300ebf"
+      ]
+    },
+    {
+      "name": "k3-of-n5",
+      "secret_hex": "40285b5cc8b2c3ffc51c5f6828f829d3e70691c58569ebd3d91c95dd2e584de1",
+      "parts": 5,
+      "threshold": 3,
+      "shares_hex": [
+        "fa889670e2aaca6f13074f6a605bf40cc966e48ea9df4204010c9a30ffbb26cc45",
+        "98e538f6d08a877343586be5ece10534cf7c1867b105ad9ddc1e967594ea1a0d9a",
+        "1e0482318e13165edabcb7e59a50e58074ad1b70116ffc4f4b88c2d98b80825b58",
+        "c8618a1bc0ce8dcb5958436d22ce5e9360e755943a98f908e2bf334488a414fc9c",
+        "c19ee9b1b9881570a22de825b652eb27414307fa63e204e813b7bdadf2dffbf5dc"
+      ]
+    },
+    {
+      "name": "k5-of-n5",
+      "secret_hex": "686a98a4ce894131e251924b0395af6be0aeed80d02ab53c81785cfeafa45cdc",
+      "parts": 5,
+      "threshold": 5,
+      "shares_hex": [
+        "c26648c381bef9033429d25bbbbdf6ccba88932686845111ea2f2ac70789ab3d84",
+        "2b24b93a2a9f4a8862e8ec73207a46c25ba992f3cde6e9d77b9a503eeb2fdd90f8",
+        "2b5f758dfc133e70921222fe26af6dc22de9f87cd843ee9cb2e093e2dc57e3d42d",
+        "a3fa7dd47a279d699cb83e7f85c470a8b2001dfba9ac37a2bdfb2f83b919db0af0",
+        "c62858cb739af4e8ca5b573a900e789255239885beb4bdc1658d5bca4460615c19"
+      ]
+    },
+    {
+      "name": "k10-of-n10",
+      "secret_hex": "8537e77b67bdf71816dada85a71f9e4edfe4372379b9a6b7c6e8a77e7fc4f959",
+      "parts": 10,
+      "threshold": 10,
+      "shares_hex": [
+        "b260c6361944744327d23721aa6d7ae36704f3d7df9b4a693b4cd87a151d43cfb5",
+        "21f9b14a2937179d16271490e456d6f5744e04fe7b4b3dd279a35394756f0ac8c9",
+        "d3f566922c31c55907dab46cd18e96c81c8570cb37f60ab610a76368a66e0276ef",
+        "e3c5228aa00ba11cc211f10d4589686611878515a3a64f8ce34239593e2793bd6a",
+        "d7d932ecf6c4875ce876736ed9bf17f89be0457caf344615bb70d6d6358026b564",
+        "e7786d9517047bcf37c6fce5142b3d34225fd45d98f3a91ab67713c26b74f08246",
+        "4e0bf147ffc9488202003d3d968a544e6f620b6f14bdbd48c21a084298fcb5f188",
+        "2f79822a7fbe53118738a65e32c03f865a6002c8a3b79a1b5e93013e6d0a579fb7",
+        "9d74937f0e92e9e49ca4747f334a32d5657301c8619e06ef1937976ee7b8233bc0",
+        "7fdc1c72ecf39c392a09b6e5ed13e848ed7731aacfe8f8ec839e44122ae8557fea"
+      ]
+    }
+  ]
+}

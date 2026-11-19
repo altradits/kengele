@@ -72,9 +72,12 @@ const (
 	NoticeResumed                        // a transport is back: clock running
 	NoticeMassSilence                    // several activists silent at once
 	NoticeActivistSafe                   // the activist signed an all-clear at Level 1+: shown, ends nothing
+	NoticeGoingDark                      // the activist declared going dark: clock paused until expiry
+	NoticeDarkExpired                    // the dark period ended: clock running, return window in force
+	NoticeStillPaused                    // an offline pause is still holding: re-alert
 )
 
-var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence", "activist-says-safe"}
+var noticeNames = [...]string{"started", "reminder", "missed", "alarm", "recovered", "cleared", "paused", "resumed", "mass-silence", "activist-says-safe", "going-dark", "dark-expired", "still-paused"}
 
 func (k NoticeKind) String() string {
 	if int(k) < len(noticeNames) {
@@ -139,13 +142,18 @@ type Config struct {
 	MassSilence int
 	// MassSpan is the span for MassSilence.
 	MassSpan time.Duration
+	// StillPausedEvery is how often Tick re-alerts while an activist
+	// stays offline-paused, so a stuck "down" signal cannot suppress
+	// alarms silently forever. Negative disables the re-alert.
+	StillPausedEvery time.Duration
 }
 
 // Defaults.
 const (
-	DefaultReturnWindow = 2 * time.Hour
-	DefaultMassSilence  = 3
-	DefaultMassSpan     = 15 * time.Minute
+	DefaultReturnWindow     = 2 * time.Hour
+	DefaultMassSilence      = 3
+	DefaultMassSpan         = 15 * time.Minute
+	DefaultStillPausedEvery = 24 * time.Hour
 )
 
 func (c Config) withDefaults() Config {
@@ -157,6 +165,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MassSpan <= 0 {
 		c.MassSpan = DefaultMassSpan
+	}
+	if c.StillPausedEvery == 0 {
+		c.StillPausedEvery = DefaultStillPausedEvery
 	}
 	return c
 }
@@ -185,9 +196,20 @@ type tracker struct {
 	offline bool
 	// offlineAt is when offline last became true.
 	offlineAt time.Time
+	// stillAt is when the last still-paused re-alert fired for this
+	// tracker, or when the current offline pause started if none has
+	// yet. It resets when the pause lifts.
+	stillAt time.Time
 	// activistSaysSafe is set when the activist signed an all-clear after
 	// Level 1 (#30). It is shown to guardians and ends nothing.
 	activistSaysSafe bool
+	// dark is true while a going-dark (#10) holds the clock, even with
+	// the transports up. darkSince and darkUntil bound the hold;
+	// darkReturn is the check-in window granted when it ends if the
+	// deadline passed inside. A newer going-dark replaces these.
+	dark                 bool
+	darkSince, darkUntil time.Time
+	darkReturn           time.Duration
 }
 
 // uses reports whether the tracker's plan enables transport k.
@@ -253,6 +275,9 @@ func (e *Engine) Watch(activist [32]byte, w Window, via ...transport.Kind) error
 	t := &tracker{key: activist, w: w, state: StateInactive, seen: map[uint32]struct{}{}, via: uniq}
 	t.offline = !e.reachable(t)
 	t.offlineAt = e.now
+	if t.offline {
+		t.stillAt = e.now
+	}
 	e.acts[activist] = t
 	return nil
 }
@@ -316,6 +341,17 @@ func (e *Engine) ActivistSaysSafe(activist [32]byte) bool {
 	return ok && t.activistSaysSafe
 }
 
+// GoingDark reports whether a going-dark hold (#10) is in force for the
+// activist, and when it ends. A stale hold past its end is reported as
+// over; the next Tick clears it.
+func (e *Engine) GoingDark(activist [32]byte) (time.Time, bool) {
+	t, ok := e.acts[activist]
+	if !ok || !t.dark || !t.darkUntil.After(e.now) {
+		return time.Time{}, false
+	}
+	return t.darkUntil, true
+}
+
 // StandDown ends an activist's alarm because k distinct guardians signed
 // all-clears after checking on the activist by voice or video. The engine
 // does not count guardian all-clears itself: internal/confirm does that
@@ -326,7 +362,7 @@ func (e *Engine) StandDown(now time.Time, activist [32]byte) []Notice {
 	if !ok || t.state == StateInactive || t.state == StateCleared {
 		return out
 	}
-	t.state, t.massHold, t.activistSaysSafe = StateCleared, false, false
+	t.state, t.massHold, t.activistSaysSafe, t.dark = StateCleared, false, false, false
 	return append(out, Notice{Kind: NoticeCleared, Activist: t.key, At: e.now,
 		Reason: "guardians stood down after checking on the activist"})
 }
@@ -346,6 +382,38 @@ func (e *Engine) Tick(now time.Time) []Notice {
 	e.now = now
 	var out []Notice
 
+	// End going-dark holds (#10) that ran out, before anything else, so
+	// a stale hold never pauses a window that opens below. Like an
+	// outage resume, a deadline that passed inside gets the activist's
+	// return window, once per check-in cycle; any other deadline moves
+	// on by the length of the hold. A hold that ends while another
+	// pause (offline, mass silence) is in force just lifts quietly and
+	// that pause keeps the clock; so does one that ends on an alarm, a
+	// missed deadline or a closed window, which a going-dark never
+	// downgrades.
+	for _, k := range e.order {
+		t := e.acts[k]
+		if !t.dark || now.Before(t.darkUntil) {
+			continue
+		}
+		t.dark = false
+		if t.offline || t.massHold || t.state != StatePaused {
+			continue
+		}
+		if !t.missAt.After(now) && !t.returnGranted {
+			t.missAt = now.Add(t.darkReturn)
+			t.returnGranted = true
+		} else {
+			t.missAt = t.missAt.Add(now.Sub(t.darkSince))
+		}
+		t.state = t.resume
+		if t.state == StateReminder && now.Before(t.due().Add(-t.w.Reminder)) {
+			t.state, t.reminded = StateWaiting, false
+		}
+		out = append(out, Notice{Kind: NoticeDarkExpired, Activist: k, At: now, Deadline: t.missAt,
+			Reason: fmt.Sprintf("giza kimekwisha / dark period ended: clock running again, check in by %s", t.missAt.UTC().Format(time.RFC3339))})
+	}
+
 	// Open windows that have started.
 	for _, k := range e.order {
 		t := e.acts[k]
@@ -353,10 +421,16 @@ func (e *Engine) Tick(now time.Time) []Notice {
 			t.last = t.w.Start
 			e.setDeadline(t, t.w.Start)
 			t.state = StateWaiting
-			if t.offline {
+			if t.offline || t.dark {
 				t.resume, t.state = StateWaiting, StatePaused
 			}
 			out = append(out, Notice{Kind: NoticeStarted, Activist: k, At: now, Deadline: t.missAt})
+			if t.offline {
+				// A window that opens mid-shutdown pauses at once; say so
+				// or the operator cannot tell a held clock from a dead one.
+				out = append(out, Notice{Kind: NoticePaused, Activist: k, At: now, Deadline: t.missAt,
+					Reason: "window opened while all of this activist's transports are down"})
+			}
 		}
 	}
 
@@ -426,6 +500,30 @@ func (e *Engine) Tick(now time.Time) []Notice {
 		out = append(out, Notice{Kind: NoticeMissed, Activist: t.key, At: now, Deadline: t.missAt,
 			Reason: fmt.Sprintf("no check-in by %s", t.missAt.UTC().Format(time.RFC3339))})
 	}
+
+	// Still-paused re-alerts: an offline pause never ends on its own, so
+	// while one holds, re-alert every StillPausedEvery so a stuck "down"
+	// signal cannot suppress alarms silently forever. Mass-silence and
+	// going-dark holds already end on their own and are excluded.
+	if e.cfg.StillPausedEvery > 0 {
+		for _, k := range e.order {
+			t := e.acts[k]
+			if !t.offline || t.state != StatePaused || t.massHold || t.dark {
+				continue
+			}
+			last := t.stillAt
+			if last.IsZero() {
+				last = t.offlineAt
+			}
+			if now.Before(last.Add(e.cfg.StillPausedEvery)) {
+				continue
+			}
+			t.stillAt = now
+			out = append(out, Notice{Kind: NoticeStillPaused, Activist: k, At: now, Deadline: t.missAt,
+				Reason: fmt.Sprintf("bado imesimama / still paused: clock paused since %s, deadline %s",
+					t.offlineAt.UTC().Format(time.RFC3339), t.missAt.UTC().Format(time.RFC3339))})
+		}
+	}
 	return out
 }
 
@@ -458,7 +556,7 @@ func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice
 			if t.offline || e.reachable(t) {
 				continue
 			}
-			t.offline, t.offlineAt = true, e.now
+			t.offline, t.offlineAt, t.stillAt = true, e.now, e.now
 			if t.massHold {
 				// The probe now confirms a shutdown: the hold becomes an
 				// ordinary pause that has already used its return window.
@@ -485,8 +583,11 @@ func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice
 			continue
 		}
 		t.offline = false
+		t.stillAt = time.Time{}
 		outage := now.Sub(t.offlineAt)
-		if t.state != StatePaused || t.massHold {
+		if t.state != StatePaused || t.massHold || t.dark {
+			// A mass-silence hold or a going-dark (#10) keeps the
+			// clock paused; it resumes when that hold ends.
 			continue
 		}
 		if !t.missAt.After(now) && !t.returnGranted {
@@ -509,8 +610,7 @@ func (e *Engine) SetTransport(now time.Time, k transport.Kind, up bool) []Notice
 // checked the signature, sender and time) and the transport it arrived on,
 // and returns what it changes. Messages from keys not being watched are
 // ignored, as are replays of a (signer, seq) pair already seen. Guardian
-// kinds (missed, confirm) and going-dark are handled by later stages
-// (#10, #11).
+// kinds (missed, confirm) are handled by a later stage (#11).
 //
 // The message proves only its own transport: it releases mass-silence
 // holds just for activists who use that transport. A message tagged
@@ -547,11 +647,14 @@ func (e *Engine) Observe(now time.Time, via transport.Kind, ev message.Event) []
 		if ev.Kind == message.KindDuressCheckIn {
 			reason = "duress check-in: the activist is being forced"
 		}
-		t.state, t.massHold = StateAlarm, false
+		t.state, t.massHold, t.dark = StateAlarm, false, false
 		out = append(out, Notice{Kind: NoticeAlarm, Activist: t.key, At: e.now, EventTime: ev.CreatedAt, Reason: reason})
 
 	case message.KindCheckIn:
 		out = append(out, e.checkIn(t, ev)...)
+
+	case message.KindGoingDark:
+		out = append(out, e.goingDark(t, ev)...)
 
 	case message.KindAllClear:
 		// #30: a captor can force the activist to unlock with the real PIN.
@@ -566,12 +669,39 @@ func (e *Engine) Observe(now time.Time, via transport.Kind, ev message.Event) []
 			out = append(out, Notice{Kind: NoticeActivistSafe, Activist: t.key, At: e.now, EventTime: ev.CreatedAt,
 				Reason: "the activist says they are safe; this does not end the alarm: guardians must check by voice or video and stand down together"})
 		default:
-			t.state = StateCleared
+			t.state, t.dark = StateCleared, false
 			out = append(out, Notice{Kind: NoticeCleared, Activist: t.key, At: e.now, EventTime: ev.CreatedAt,
 				Reason: "all clear from the activist"})
 		}
 	}
 	return out
+}
+
+// goingDark arms the activist's shutdown mode at once: the clock pauses
+// until receipt plus the event's dark window, at most
+// message.MaxGoingDark (7 days) out, when Tick ends the hold. A newer
+// going-dark replaces the current hold, so a longer shutdown needs the
+// activist's key again. A mass-silence hold becomes this hold, like a
+// probe-confirmed shutdown: the activist has now explained the silence.
+// A going-dark never downgrades a missed deadline, an alarm or a closed
+// window, and one with an unreadable body is dropped.
+//
+// Threat model (docs/threat-model.md §4.1, A6): shutdowns announced hours
+// ahead must not become mass false alarms, and the 7-day bound means a
+// forced going-dark (A3) only pauses a running clock for a bounded time.
+func (e *Engine) goingDark(t *tracker, ev message.Event) []Notice {
+	g, err := message.ParseGoingDark(ev)
+	if err != nil {
+		return nil
+	}
+	until := e.now.Add(g.Dark)
+	t.dark, t.darkSince, t.darkUntil, t.darkReturn = true, e.now, until, g.ReturnWindow
+	t.massHold = false
+	if t.state == StateWaiting || t.state == StateReminder {
+		t.resume, t.state = t.state, StatePaused
+	}
+	return []Notice{{Kind: NoticeGoingDark, Activist: t.key, At: e.now, EventTime: ev.CreatedAt, Deadline: until,
+		Reason: fmt.Sprintf("anaenda gizani / going dark: the activist expects a shutdown, clock paused until %s", until.UTC().Format(time.RFC3339))}}
 }
 
 func (e *Engine) checkIn(t *tracker, ev message.Event) []Notice {
@@ -586,7 +716,9 @@ func (e *Engine) checkIn(t *tracker, ev message.Event) []Notice {
 	held := t.massHold
 	prevMiss := t.missAt
 	t.last = at
-	t.massHold = false
+	// An accepted check-in proves the activist is reachable, so any
+	// going-dark (#10) ends with it.
+	t.massHold, t.dark = false, false
 
 	if !at.Before(t.w.End.Add(-t.w.Grace)) {
 		t.state = StateCleared
@@ -595,7 +727,7 @@ func (e *Engine) checkIn(t *tracker, ev message.Event) []Notice {
 
 	e.setDeadline(t, at)
 	switch {
-	case prev == StatePaused && !held:
+	case prev == StatePaused && !held && t.offline:
 		t.resume = StateWaiting // still offline; stays paused with the new deadline
 	default:
 		t.state = StateWaiting

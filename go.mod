@@ -5,6 +5,7 @@ go 1.24.1
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/coder/websocket v1.8.12
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/nbd-wtf/go-nostr v0.52.3
 	github.com/openbao/openbao/sdk/v2 v2.5.1
 	golang.org/x/crypto v0.47.0
@@ -17,7 +18,6 @@ require (
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect

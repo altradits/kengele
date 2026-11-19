@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele Guardian</string>
+
+    <string name="menu_enroll">Enroll kit</string>
+    <string name="menu_inbox">Alarm inbox</string>
+    <string name="menu_confirm">Confirm alarm</string>
+    <string name="menu_all_clear">All clear</string>
+    <string name="menu_publish">Publish alert</string>
+    <string name="menu_settings">Relay settings</string>
+
+    <string name="transport_note">Alarms arrive over your Nostr relays when configured, or as pasted text. Nothing leaves the phone on its own.</string>
+    <string name="no_names_note">Keys only. This app never stores names, numbers or photos.</string>
+
+    <string name="status_not_enrolled">Not enrolled. Start with “Enroll kit”.</string>
+    <string name="status_line">Alarm %1$d · Confirms %2$d of %3$d · Clears %4$d of %3$d</string>
+    <string name="status_activist_says_safe">The activist sent an all-clear. Verify by voice or video before you clear.</string>
+    <string name="status_released">The alert was released with %1$d confirmations.</string>
+
+    <string name="enroll_title">Enroll kit</string>
+    <string name="this_device_key">This phone’s guardian key (share it with the activist):</string>
+    <string name="activist_key_hint">Activist public key, 64 hex characters</string>
+    <string name="guardian_key_hint">Guardian public key, 64 hex characters</string>
+    <string name="threshold_hint">Threshold k (2 or more)</string>
+    <string name="share_hint">This guardian’s share, 66 hex characters (needed to confirm)</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="save">Save</string>
+    <string name="guardians_count">Guardians: %1$d</string>
+    <string name="invalid_key">That key is not a valid guardian key.</string>
+    <string name="invalid_share">That share is not 66 hex characters.</string>
+    <string name="invalid_enrollment">The kit needs an activist key, 2–10 distinct guardian keys and a threshold k of at least 2.</string>
+    <string name="enrolled">Kit enrolled.</string>
+
+    <string name="inbox_title">Alarm inbox</string>
+    <string name="inbox_hint">Paste a 304-character event here</string>
+    <string name="inbox_open">Open event</string>
+    <string name="inbox_result_count">Counted. %1$s</string>
+    <string name="inbox_ignored">Ignored: %1$s</string>
+    <string name="inbox_bad_text">That text is not a valid event.</string>
+
+    <string name="confirm_title">Confirm alarm</string>
+    <string name="confirm_explainer">Your confirmation carries your share to the other guardians only, never to the activist. With %1$d of %2$d the alert goes public.</string>
+    <string name="confirm_build">Build confirmation</string>
+    <string name="confirm_needs_share">Enroll this guardian’s share first.</string>
+    <string name="confirm_done">Confirmation counted. %1$s</string>
+    <string name="sealed_texts_title">Send each text to one guardian:</string>
+
+    <string name="clear_title">All clear</string>
+    <string name="clear_explainer">Only %1$d guardians together can end an alarm, each after a voice or video call. The activist’s own all-clear ends nothing by itself.</string>
+    <string name="check_called">I spoke to the activist by voice or video call</string>
+    <string name="check_free">They confirmed they are free and safe</string>
+    <string name="check_no_coercion">I saw no signs of coercion</string>
+    <string name="method_voice">Voice call</string>
+    <string name="method_video">Video call</string>
+    <string name="clear_build">Build all-clear</string>
+    <string name="clear_needs_checklist">Tick every checklist box and pick voice or video first.</string>
+    <string name="clear_done">All-clear counted. %1$s</string>
+
+    <string name="settings_title">Relay settings</string>
+    <string name="relay_hint">Relay address, e.g. wss://relay.example</string>
+    <string name="relays_count">Relays: %1$d</string>
+    <string name="min_accepted_hint">Relays that must accept (1 or more)</string>
+    <string name="invalid_relay">That relay address is not valid.</string>
+    <string name="invalid_min_accepted">At least 1 relay must accept.</string>
+    <string name="settings_saved">Settings saved.</string>
+
+    <string name="nostr_listening">Listening on %1$d of %2$d relays.</string>
+    <string name="nostr_none">No relays configured — add some in Settings, or paste events below.</string>
+    <string name="nostr_send_none">No relays configured — set them in Settings, or send the texts by hand.</string>
+    <string name="nostr_from_net">From the network. %1$s</string>
+    <string name="nostr_sent_all">All %1$d reached the relays.</string>
+    <string name="nostr_sent_partial">%1$d of %2$d reached the relays; the rest will retry.</string>
+
+    <string name="mesh_links">Live links: %1$d</string>
+    <string name="mesh_relayed">Datagrams relayed: %1$d</string>
+    <string name="mesh_off">Mesh is off.</string>
+    <string name="mesh_unavailable">Bluetooth LE is not available on this phone.</string>
+    <string name="mesh_from_mesh">Over mesh. %1$s</string>
+    <string name="mesh_perm_title">Bluetooth permission</string>
+    <string name="mesh_perm_rationale">Kengele uses Bluetooth to receive sealed alarms from nearby phones. It never uses GPS.</string>
+    <string name="mesh_perm_allow">Continue</string>
+    <string name="mesh_perm_denied">Bluetooth permission denied. Mesh stays off.</string>
+
+    <string name="release_title">Publish alert</string>
+    <string name="release_found_safe_title">Publish found-safe update</string>
+    <string name="release_explainer">The guardians confirmed. This is the alert the activist wrote, opened with their shares. Check it, then publish it once.</string>
+    <string name="release_safe_explainer">The guardians cleared the alarm after the alert went out. This update tells everyone the activist was found safe.</string>
+    <string name="release_confirmed_line">Confirmed by %1$d guardians · Alarm %2$d</string>
+    <string name="release_alert_pub_label">Alert key (journalists check the note against this key):</string>
+    <string name="release_note_label">The public note:</string>
+    <string name="release_publish">Publish</string>
+    <string name="release_confirm_title">Publish this alert?</string>
+    <string name="release_confirm_message">This sends the alert to your Nostr relays for everyone to see. It cannot be undone.</string>
+    <string name="release_confirm_safe_title">Publish this found-safe update?</string>
+    <string name="release_confirm_safe_message">This tells everyone who saw the alert that the activist was found safe. It cannot be undone.</string>
+    <string name="release_published">Published: accepted by %1$d of %2$d relays. Note:</string>
+    <string name="release_failed">No relay accepted. Check Settings and try again.</string>
+    <string name="release_no_relays">No relays configured — set them in Settings first.</string>
+    <string name="release_nothing">Nothing to publish.</string>
+    <string name="release_needs_kit">Enroll the sealed alert first: without it this phone cannot open the release.</string>
+    <string name="alert_pub_hint">Alert public key, 64 hex characters (needed to publish)</string>
+    <string name="ciphertext_hint">Sealed alert, hex (needed to publish)</string>
+    <string name="invalid_alert_pub">That alert key is not valid.</string>
+    <string name="invalid_ciphertext">That sealed alert is not valid hex.</string>
+
+    <string name="need_enrollment">Enroll a kit first.</string>
+    <string name="cancel">Cancel</string>
+    <string name="done">Done</string>
+    <string name="unknown_error">Something went wrong.</string>
+</resources>

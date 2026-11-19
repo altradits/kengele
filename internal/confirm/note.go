@@ -35,6 +35,17 @@ var ErrNoRelease = errors.New("confirm: outcome has nothing to publish")
 // alert note, used only for FoundSafe to link the update to it; it may be
 // empty.
 func Note(out Outcome, st Status, alertID string, now time.Time) (gn.Event, error) {
+	return note(out, st, alertID, now, false)
+}
+
+// DrillNote builds a rehearsed release that can never be mistaken for a
+// real one: the content carries a DRILL: prefix and the event a drill tag.
+// Drills must publish through DrillPublish, never Publish.
+func DrillNote(out Outcome, st Status, alertID string, now time.Time) (gn.Event, error) {
+	return note(out, st, alertID, now, true)
+}
+
+func note(out Outcome, st Status, alertID string, now time.Time, drill bool) (gn.Event, error) {
 	if out.Alert == nil || out.AlertKey == nil {
 		return gn.Event{}, ErrNoRelease
 	}
@@ -59,6 +70,10 @@ func Note(out Outcome, st Status, alertID string, now time.Time) (gn.Event, erro
 	default:
 		return gn.Event{}, ErrNoRelease
 	}
+	if drill {
+		content = "DRILL: " + content
+		tags = append(tags, gn.Tag{"kengele", "drill"})
+	}
 	return sign(gn.Event{Kind: gn.KindTextNote, CreatedAt: gn.Timestamp(now.Unix()), Tags: tags, Content: content}, out.AlertKey)
 }
 
@@ -67,6 +82,18 @@ func Note(out Outcome, st Status, alertID string, now time.Time) (gn.Event, erro
 // guardians confirmed (or the alarm was cleared after that).
 func Publish(ctx context.Context, p Publisher, out Outcome, st Status, alertID string, now time.Time) (gn.Event, error) {
 	ev, err := Note(out, st, alertID, now)
+	if err != nil {
+		return gn.Event{}, err
+	}
+	if err := p.Publish(ctx, ev); err != nil {
+		return gn.Event{}, fmt.Errorf("confirm: publish: %w", err)
+	}
+	return ev, nil
+}
+
+// DrillPublish publishes a rehearsed release built by DrillNote.
+func DrillPublish(ctx context.Context, p Publisher, out Outcome, st Status, alertID string, now time.Time) (gn.Event, error) {
+	ev, err := DrillNote(out, st, alertID, now)
 	if err != nil {
 		return gn.Event{}, err
 	}

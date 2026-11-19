@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kengele</string>
+
+    <string name="menu_guardians">Guardians</string>
+    <string name="menu_window">Watch window</string>
+    <string name="menu_pins">Set PINs</string>
+    <string name="menu_checkin">Check in</string>
+    <string name="menu_panic">Panic</string>
+
+    <string name="transport_stub">Check-ins leave by SMS only (opt-in); Nostr sending is not wired yet.</string>
+    <string name="status_line">Guardians: %1$d · Window: %2$s</string>
+    <string name="status_window_set">%1$d min</string>
+    <string name="window_none">not set</string>
+
+    <string name="guardians_title">Guardians</string>
+    <string name="no_names_note">Keys only. Kengele never stores guardian names, numbers or photos.</string>
+    <string name="guardian_key_hint">Guardian public key, 64 hex characters</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="guardians_count">Guardians: %1$d of 5</string>
+    <string name="invalid_key">That key is not a valid guardian key.</string>
+
+    <string name="window_title">Watch window</string>
+    <string name="window_start_in">Start in (minutes from now)</string>
+    <string name="window_duration">Duration (minutes)</string>
+    <string name="window_interval">Check in every (minutes)</string>
+    <string name="window_grace">Late after (minutes)</string>
+    <string name="window_reminder">Remind before (minutes)</string>
+    <string name="save">Save</string>
+    <string name="window_saved">Watch window saved.</string>
+    <string name="window_needs_start_end">The window needs a start and an end.</string>
+    <string name="window_end_after_start">The window end must be after the start.</string>
+    <string name="window_interval_positive">The interval must be positive.</string>
+    <string name="window_grace_reminder_negative">Grace and reminder must not be negative.</string>
+    <string name="window_reminder_shorter">The reminder must be shorter than the interval.</string>
+
+    <string name="pins_title">PINs</string>
+    <string name="duress_explainer">If someone forces you to check in, enter the duress PIN. It shows the same screen but silently raises the alarm.</string>
+    <string name="real_pin">Everyday PIN</string>
+    <string name="duress_pin">Duress PIN</string>
+    <string name="pins_invalid">PINs must be 4–32 characters and must differ.</string>
+    <string name="pins_saved">PINs saved.</string>
+
+    <string name="checkin_title">Check in</string>
+    <string name="enter_pin">Enter PIN</string>
+    <string name="place_hint">Place, optional. Typed by you, never GPS.</string>
+    <string name="checkin_button">Check in</string>
+    <string name="place_too_long">That place is too long (86 bytes at most).</string>
+    <string name="checked_in">Checked in.</string>
+    <string name="wrong_pin">Wrong PIN, try again.</string>
+
+    <string name="panic_confirm_title">Send panic alert?</string>
+    <string name="panic_confirm_message">This tells your guardians it is an emergency. Only use it in real danger.</string>
+    <string name="panic_sent">Panic alert queued.</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+
+    <string name="menu_mesh">Mesh</string>
+
+    <string name="mesh_title">Mesh carry</string>
+    <string name="mesh_relaying">Relaying blindly</string>
+    <string name="mesh_no_path">No path — silence fails safe</string>
+    <string name="mesh_advertising">Advertising: %1$s</string>
+    <string name="mesh_scanning">Scanning: %1$s</string>
+    <string name="mesh_links">Live links: %1$d</string>
+    <string name="mesh_relayed">Datagrams relayed: %1$d</string>
+    <string name="mesh_start">Start mesh</string>
+    <string name="mesh_stop">Stop mesh</string>
+    <string name="mesh_running">Mesh is running.</string>
+    <string name="mesh_stopped">Mesh is off.</string>
+    <string name="mesh_perm_title">Bluetooth permission</string>
+    <string name="mesh_perm_rationale">Kengele uses Bluetooth to carry sealed alarms between nearby phones during your watch window. It never uses GPS.</string>
+    <string name="mesh_perm_allow">Continue</string>
+    <string name="mesh_perm_denied">Bluetooth permission denied. Mesh carry stays off.</string>
+    <string name="mesh_service_name">Mesh carry</string>
+    <string name="mesh_service_text">Carrying sealed alarms for nearby phones.</string>
+    <string name="mesh_window_inactive">Mesh runs during your watch window. Set one first.</string>
+    <string name="mesh_unavailable">Bluetooth LE is not available on this phone.</string>
+
+    <string name="need_setup">Set guardians, a window and PINs first.</string>
+    <string name="result_ok">Done</string>
+    <string name="result_try_again">Try again</string>
+    <string name="done">Done</string>
+    <string name="unknown_error">Something went wrong.</string>
+</resources>

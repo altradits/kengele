@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Five-press panic gesture (threat model, section 7). -->
+    <string name="menu_panic_gesture">Panic gesture</string>
+    <string name="panic_gesture_title">Panic gesture</string>
+    <string name="panic_gesture_explainer">Press the power button 5 times within 10 seconds to bring up the panic confirmation. It only listens during your watch window, and nothing is sent until you tap Yes. It is on now; turn it off here if drills show it fires by accident.</string>
+    <string name="panic_gesture_status_on">Panic gesture is on.</string>
+    <string name="panic_gesture_status_off">Panic gesture is off.</string>
+    <string name="panic_gesture_turn_on">Turn on panic gesture</string>
+    <string name="panic_gesture_turn_off">Turn off panic gesture</string>
+    <string name="panic_gesture_armed">Listening now: your watch window is active.</string>
+    <string name="panic_gesture_idle_no_window">Not listening: no watch window is active.</string>
+    <string name="panic_gesture_idle_off">Not listening: the gesture is off. The Panic button still works.</string>
+    <string name="panic_gesture_service_name">Panic gesture</string>
+    <string name="panic_gesture_service_text">Listening for 5 power presses during your watch window.</string>
+    <string name="panic_gesture_alert_title">Panic gesture fired</string>
+    <string name="panic_gesture_alert_text">Tap to confirm or cancel the panic alert.</string>
+</resources>

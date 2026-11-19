@@ -30,11 +30,42 @@ A shutdown rarely takes everything down at once. In Tanzania in 2025 the interne
 | Nostr back first | Resumes | Resumes |
 | SMS check-in from someone else during a mass-silence hold | Hold ends | Hold continues |
 
+### A stuck pause re-alerts
+
+An offline pause never ends on its own: if the probe's "down" signal sticks, the clock would stay frozen and silence would mean nothing forever. So while an activist stays offline-paused, the watcher re-alerts every 24 hours (`bado imesimama / still paused: clock paused since …, deadline …`). Mass-silence and going-dark holds already end on their own, so they never re-alert.
+
 ### An activist's all-clear does not end an alarm
 
 A captor can force the activist to unlock with the real PIN. So once an alarm reaches Level 1 (a missed check-in, a panic or a duress check-in), the activist's own all-clear is shown to guardians as "the activist says they are safe" but ends nothing. Only the guardians stand the alarm down together, after a voice or video check ([guardian-confirmation.md](guardian-confirmation.md), #30). Before Level 1, while a check-in is only due or in its grace period, the activist's own all-clear still ends the watch.
 
-Shutdowns often come with a few hours' warning. Uganda's was ordered on 13 January 2026 to take effect at 6pm, two days before the vote. So the activist gets a **"Going dark"** button: it sends the latest plan, the alert written in advance and the guardian list before the network goes down.
+### Going dark: pre-arm before a shutdown
+
+Shutdowns often come with a few hours' warning. Uganda's was ordered on 13 January 2026 to take effect at 6pm, two days before the vote. So the activist gets a **"Going dark"** button: it sends a signed, encrypted `going-dark` event (kind 7) before the network goes down, and every guardian's watcher switches that activist — and only that activist — to shutdown mode at once.
+
+What the event carries (code: `internal/message`, `GoingDark`; body layout in `goingdark.go`):
+
+- **The current watch plan**: window start and end, check-in interval, grace, reminder, and the routes the activist uses. The guardian compares it against the encrypted plan it already holds; the watcher never adopts a new plan from this message alone.
+- **The dark window**: how long the activist expects to be dark, 1 minute to 7 days.
+- **The return window**: the check-in window the activist asks for once the dark period ends.
+- **The pre-written alert, as a commitment**: SHA-256 of the canonical encrypted alert blob. The full plan and the encrypted alert do not fit in the 86-byte body, so they travel alongside over Nostr (#8) or are already held in the guardian's confirmation kit (#11); the hash tells the guardian whether what it holds is still the latest. The guardian list itself comes from enrolment (#11), not from this event.
+- **A shutdown-plan reference**: a short code (at most 23 bytes) for the written plan below — who checks on whom, where, when.
+
+The event is the same size on the wire as every other kind, so a carrier cannot tell it from a check-in ([message-format.md](message-format.md)).
+
+What the watcher does on receipt (`internal/schedule`, `cmd/kengele-watcher`):
+
+- **Pauses that activist's clock at once**, even with the transports up, until receipt plus the dark window. Silence inside the hold raises nothing.
+- **Resumes when the hold ends.** A deadline that passed inside gets the activist's return window, once per check-in cycle; any other deadline moves on by the length of the hold. Continued silence past that misses exactly like a normal missed check-in.
+- **Renews on a newer going-dark**, which replaces the hold: each renewal lasts at most 7 days from its own receipt, so a longer shutdown needs the activist's signing key again.
+- **Ends early on an accepted check-in**, which proves the activist is reachable (a final check-in still closes the window). A panic or duress check-in still raises the top-level alarm at once.
+- **Never downgrades**: a going-dark does not clear a missed deadline, an alarm or a closed window, and one with an unreadable body — or a replayed sequence number — is dropped.
+- **Combines with the other pauses**: it converts a mass-silence hold into this hold (the activist has explained the silence), its arrival still proves its own transport for other activists' holds, and a transport outage overlapping the hold resumes only after both end.
+
+Guardians see two bilingual notices, for example `anaenda gizani / going dark: the activist expects a shutdown, clock paused until …` and `giza kimekwisha / dark period ended: clock running again, check in by …`.
+
+Why at most 7 days: the bound is the point. A going-dark suppresses alarms, so one message must never silence an activist for longer than a week; anything longer needs a fresh message, which needs the activist alive, free and holding their key.
+
+Threats this addresses ([threat-model.md](threat-model.md) §4.1 A6 "Shut down the internet", §4.2 "Nationwide shutdown makes everyone silent", §5 "Going dark"): announced shutdowns must not become mass false alarms, and the alarm must fire the minute the network — or the hold — ends. Residual: forcing a going-dark under coercion (A3) still buys a bounded pause of a running clock, never of an alarm; a device already compromised (§6.4) or a majority of compromised guardians (§6.6) defeat it like everything else; and the fact that a message was sent, and when, stays visible to the network (§2, check-in timing metadata).
 
 ## Principle 2: the alert needs a path out eventually, not a live network
 

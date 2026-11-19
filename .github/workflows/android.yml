@@ -1,0 +1,56 @@
+name: android
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - 'internal/message/testdata/vectors.json'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'internal/message/testdata/vectors.json'
+      - '.github/workflows/android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: build debug APK, run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Build debug APKs and run unit tests
+        run: gradle -p android :message:testDebugUnitTest :app:testDebugUnitTest :guardian:testDebugUnitTest :app:assembleDebug :guardian:assembleDebug --stacktrace
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kengele-debug-apks
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/guardian/build/outputs/apk/debug/guardian-debug.apk
+          if-no-files-found: error
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kengele-android-test-reports
+          path: |
+            android/message/build/reports/tests/testDebugUnitTest
+            android/app/build/reports/tests/testDebugUnitTest
+            android/guardian/build/reports/tests/testDebugUnitTest

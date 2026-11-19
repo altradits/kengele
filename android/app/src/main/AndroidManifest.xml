@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Mesh carry (API 31+): scan, advertise and connect. neverForLocation
+         declares scanning is not used for location; Kengele never uses GPS. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Encrypted SMS fallback (docs/sms-transport.md, section 8). Google
+         Play allows SMS permissions only for the default SMS handler and a
+         few listed exceptions — the "physical safety" exception covers
+         SEND_SMS only and needs approval — so the build with full SMS
+         fallback ships through F-Droid and a signed APK. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Nostr relay publishing goes over plain TCP/TLS sockets. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Below API 31 the OS forces these for BLE; all capped at 30. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Five-press gesture listener: screen on/off needs no permission;
+         the special-use foreground-service type keeps it alive. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+    <application
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Kengele"
+        android:allowBackup="false">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".GuardianSetupActivity" android:exported="false" />
+        <activity android:name=".WatchWindowActivity" android:exported="false" />
+        <activity android:name=".PinSetupActivity" android:exported="false" />
+        <activity android:name=".PinEntryActivity" android:exported="false" />
+        <activity android:name=".CheckInResultActivity" android:exported="false" />
+        <activity android:name=".mesh.MeshStatusActivity" android:exported="false" />
+        <activity android:name=".sms.SmsSettingsActivity" android:exported="false" />
+        <activity android:name=".nostr.NostrSettingsActivity" android:exported="false" />
+        <activity android:name=".panic.PanicGestureActivity" android:exported="false" />
+        <service
+            android:name=".mesh.MeshService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
+        <receiver android:name=".mesh.MeshRearmReceiver" android:exported="false" />
+        <!-- Gesture receiver is registered dynamically by the service
+             (SCREEN_ON/OFF never reach manifest receivers) and the
+             listener only runs inside the watch window. -->
+        <service
+            android:name=".panic.PanicGestureService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Listens for 5 power-button presses during the watch window to offer the panic confirmation." />
+        </service>
+        <receiver android:name=".panic.PanicRearmReceiver" android:exported="false" />
+        <receiver
+            android:name=".sms.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".sms.SmsSentReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.altradits.kengele.sms.SMS_SENT" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>
