@@ -243,3 +243,251 @@ Lessons: (1) guardians need a printed separate-channel list before the
 drill starts; (2) the duress "do not contact" rule needs repeating right
 before scenario 2; (3) run drill 1 with live devices and a stopwatch so
 the timings above become measurements instead of narration.
+
+### Drill 1: live watcher — missed check-in, shutdown pause, post-outage alarm — 2026-11-19 (LIVE, operator-only)
+
+> **Operator-only rehearsal, not a full drill.** Every run below used the
+> real built `kengele-watcher` binary with minute-scale sealed plans, but
+> one operator played all roles from one machine: no volunteers, no test
+> phones, no separate guardian devices. All identities are made-up
+> (surname Mfano), all keys are throwaway drill keys kept in `/tmp/drill`
+> (never committed), every plan label carries a `DRILL-` prefix, and no
+> traffic left the machine. Timings come from the notice timestamps
+> (1-second tick) and wall clock.
+
+Participants (drill identities, all fictional; roles narrated by the operator):
+- Activist: Amina Mfano (plan label `DRILL-Amina-Mfano`), Dalila Mfano (plan label `DRILL-Dalila-Mfano`)
+- Guardians: Baraka Mfano, Chausiku Mfano, Dalila Mfano (no separate devices)
+- Observer: Enzi Mfano (operator)
+
+Setup: `kengele-watcher 0.0.0-dev` built from `c995b6b`; plans sealed
+with `seal-plan` (drill passphrases, 12+ chars); `-tick 1s`; alert hook
+`/tmp/drill/hook.sh` appending `KENGELE_KIND/LABEL/TIME/REASON/DEADLINE`
+to `/tmp/drill/hook1.log`. Gates before running: `gofmt -l` clean,
+`go vet ./...` pass, `go build ./...` pass.
+Consent: n/a — no volunteers; operator-only session.
+
+Runs (exact commands; fixtures in `/tmp/drill`, not committed):
+- `KENGELE_PASSPHRASE=... kengele-watcher run -plan plan1.kgp -tick 1s -alert-hook hook.sh`
+  (plan1: interval 2m, grace 30s, reminder 30s; deadline 04:08:53Z)
+- `... run -plan plan2.kgp -tick 1s -offline -alert-hook hook.sh`
+  (plan2: interval 1m, grace 20s, reminder 15s; deadline 04:12:42Z)
+- `... run -plan plan2.kgp -tick 1s` (fresh process after the deadline)
+- `... run -plan plan4.kgp -tick 1s -relays ws://127.0.0.1:18099 -key-file guardian.key`
+  (live mode against a closed localhost port; nothing listening, so every
+  dial is refused and no traffic leaves the machine)
+- `... run -plan plan5a.kgp -tick 1s -down nostr` and
+  `... run -plan plan5b.kgp -tick 1s -down nostr,sms`
+  (both plans: `transports: ["nostr", "sms"]`, interval 1m, grace 20s)
+
+| Scenario | Expected | Observed | Time to private | Time to public | False alarms |
+|---|---|---|---|---|---|
+| 1. Missed check-in | Private alarm at the deadline; hook fires once | `started` 04:06:50Z, `reminder` 04:07:53Z, `missed` 04:08:53Z exactly at the deadline; hook fired once with `KIND=missed` | 0s past deadline (≤1 tick) | n/a (no public stage wired to the CLI) | 0 |
+| 4a. Shutdown, `-offline` | No alarm while offline | `started` only; deadline 04:12:42Z passed quietly; run held ~90s past it with zero notices and zero hook fires | n/a | n/a | 0 |
+| 4b. Alarm after return | Alarm ≤1 min after the network returns | Fresh online process: `started` + `reminder` + `missed` all on the first step, 0s delay | 0s | n/a | 0 |
+| 4c. Live mode, dead relay | Connectivity signal pauses the clock | Live banner (`watching 1 via Nostr`); `started` only; deadline passed quietly, no `missed`: the 0-reachable-relay report paused the clock for real | n/a | n/a | 0 |
+| 4d. `-down nostr`, SMS plan | Clock runs on SMS; alarm at deadline | `missed` exactly at the deadline, matching the shutdown-mode per-transport table | 0s past deadline | n/a | 0 |
+| 4e. `-down nostr,sms`, SMS plan | Paused; no alarm | `started` only; deadline passed quietly | n/a | n/a | 0 |
+| 5. All-clear | — | **Could not run:** the CLI has no way to inject a delivery (demo mode uses `nopTransport`; live mode needs real relays and senders), so no check-in, duress, panic, going-dark or all-clear event could be fed to the binary | n/a | n/a | 0 |
+
+Negative paths (real CLI): `-down mesh` → `transport: mesh is not
+supported yet (#20)`, exit 1; wrong passphrase → `schedule: wrong
+passphrase or damaged plan file`, exit 1.
+
+Accidental-panic check: n/a (no phone, no gesture yet — see Drill 4).
+Unsafe contacts: n/a (no volunteers).
+Lessons: (1) **Silent pause:** when the outage predates the window
+opening, the output shows `started ... deadline ...` with no `paused`
+line — the engine only emits `paused` on a live transition
+(`internal/schedule/schedule.go`, `SetTransport`), while a window that
+opens already-offline pauses silently (`Tick`). A guardian reading CLI
+output cannot tell a paused clock from a running one. (2) CLI flags are
+static per run, so the mid-run "network returns with a return window"
+path cannot be driven through the binary; run 4b restarted the process,
+which resets connectivity and heard-state. A drill-only delivery
+injector (or a documented blocked status) is needed before scenarios 2,
+3 and 5 can run against the real binary. (3) The all-clear rule
+(activist-only ends nothing) is covered only by unit tests today
+(`TestActivistAllClearAloneEndsNothing`, pass — see Drill 4).
+
+### Drill 2: live watcher — mass silence — 2026-11-19 (LIVE, operator-only)
+
+> Same operator-only conditions as Drill 1: real built binary, made-up
+> Mfano identities, throwaway `/tmp` keys, no traffic off the machine.
+
+Participants (drill identities, all fictional; roles narrated by the operator):
+- Activists: Amina Mfano, Baraka Mfano, Chausiku Mfano (plan labels `DRILL-*-Mfano`)
+- Guardians: Baraka Mfano, Chausiku Mfano, Dalila Mfano (no separate devices)
+- Observer: Enzi Mfano (operator)
+
+Setup: `kengele-watcher 0.0.0-dev` from `c995b6b`; one plan with 3
+activists, `mass_silence: 3`, `return_window: 1m`, interval 15m30s,
+grace 30s, `-tick 1s`, same alert hook. The 16-minute deadline is
+deliberate: the engine's mass-silence span is a fixed 15 minutes
+(`DefaultMassSpan`, not plan-configurable), so the deadline must fall
+more than 15 minutes after process start or plain `missed` fires
+instead. Total run ≈19.5 minutes.
+Consent: n/a — no volunteers; operator-only session.
+
+Run: `KENGELE_PASSPHRASE=... kengele-watcher run -plan plan3.kgp -tick 1s -alert-hook hook.sh`
+
+| Scenario | Expected | Observed | Time to private | Time to public | False alarms |
+|---|---|---|---|---|---|
+| Mass silence (3 at once) | `mass-silence` × 3 at the deadline, not `missed`; hook fires per notice | `started` × 3 at 04:15:52Z; `mass-silence` × 3 at 04:31:52Z exactly at the deadline ("possible shutdown or mass arrest, check by hand now"), new deadline 04:32:52Z; `missed` × 3 at 04:32:53Z (1s past hold expiry = first tick after); hook fired 6× (3 `mass-silence` + 3 `missed`) | 0s past deadline (mass-silence); hold then missed 1s past expiry | n/a (no public stage wired to the CLI) | 0 |
+
+Accidental-panic check: n/a. Unsafe contacts: n/a.
+Lessons: (1) `MassSpan` (15m) and `StillPausedEvery` (24h) are not
+plan-configurable (`internal/schedule/schedule.go`, `Config`), so a
+short-window drill cannot rehearse mass silence quickly — this run
+needed 19.5 minutes of wall clock. Drill builds need test overrides.
+(2) Notice order follows activist key-hash order (Baraka first), not
+plan order — cosmetic, but the drill log should note it so a reader
+does not misread it as priority. (3) The "check by hand now" step after
+a mass-silence hold is human-only and still needs volunteers with a
+printed separate-channel list (Drill 0 lesson 1, still open).
+
+### Drill 3: crowd-carry simulator and talk CLI — 2026-11-19 (LIVE, operator-only)
+
+> Same operator-only conditions: real built binaries, made-up data,
+> nothing off the machine. `kengele-talk` send/listen runs used a closed
+> localhost port only (see "Could not run").
+
+Participants (drill identities, all fictional): Activist: Amina Mfano;
+Guardians: Baraka Mfano, Chausiku Mfano, Dalila Mfano; Observer: Enzi
+Mfano (operator).
+Setup: `kengele-meshlink 0.0.0-dev` and `kengele-talk 0.0.0-dev` from
+`c995b6b`; 4 throwaway drill keys + 1 probe key via `talk keygen`
+(mode 0600, fingerprint shown); notes prefixed `DRILL:`.
+Consent: n/a — no volunteers; operator-only session.
+
+`kengele-meshlink` (all in-memory, no radio; each run ≈0.08s):
+- `demo`: A→B→C, B relayed blindly (`blind: no decrypt`), C delivered
+  `kind=check-in seq=1 hops=2`. Note: C also re-relays (ttl 5) — the
+  flood continues past the destination, as designed.
+- `demo --sw`: full Swahili strings, delivered the same way.
+- `demo --drop B` and `demo --drop C`: honest silence —
+  `C received 0 (no path); silence fails safe`.
+- `demo --drop A`: still delivered. Consistent with the code semantic
+  (`Drop` discards every *received* fragment,
+  `internal/meshcarry/carry.go`; `Inject` bypasses `Receive`), but the
+  CLI help ("nodes that discard everything") over-promises — wording fix.
+- `demo --ttl 1`: B relayed at ttl 0, C received 0 — the TTL-exhaustion
+  path verified live. `--ttl 0` means `DefaultTTL` by design
+  (`carry.go`: "Zero means DefaultTTL").
+- `qr`: 304-character line plus `Show this QR / Onyesha QR hii` —
+  matches the documented QR-courier form (`docs/offgrid-comms.md`).
+- Misuse: `--drop Z` and `--ttl 300` → clear errors, exit 2.
+
+`kengele-talk`:
+- `keygen` × 5: pass; mode 0600 enforced even over existing files.
+- Oversize note (109 bytes): refused cleanly (`max 86`, bilingual), exit 1.
+- `send` to closed `ws://127.0.0.1:18099`: exit 0, `accepted by 0 of 1
+  relays, queued for retry`. The count is honest, but **"queued for
+  retry" over-promises**: the outbox is memory-only
+  (`internal/transport/nostr/outbox.go`: "queued messages are lost if
+  the process stops"), and the one-shot `send` process exits at once.
+- `listen` on the closed port for 25s: banner only, silent retry, exit 0
+  on SIGTERM — no false output.
+- `send` without `-relays`: clean error (`there is no default`), exit 1.
+
+Could not run: a live `talk send` → `talk listen` round-trip, and any
+watcher live delivery of check-ins, because this sandbox refuses TCP
+binds (`listen tcp 127.0.0.1:0: bind: operation not permitted`), so no
+local drill relay could be started; public relays are forbidden by the
+drill rules. For a human rerun on an open machine: start any minimal
+NIP-01 relay on `ws://127.0.0.1:18099`, then in one terminal
+`kengele-talk listen -key guardian.key -relays ws://127.0.0.1:18099 -senders <activist-pub>`
+and in another
+`kengele-talk send -key activist.key -to <guardian-pub> -relays ws://127.0.0.1:18099 -note "DRILL: Mfano check-in"`.
+Same cause blocks 9 repo tests here (`go test -race ./...`:
+`internal/meshexit` × 2, `internal/transport/nostr` × 7 fail at
+`net.Listen` with the same error); every other package passes,
+including `cmd/kengele-watcher`, `cmd/kengele-talk`,
+`cmd/kengele-meshlink`, `internal/schedule`, `internal/confirm`,
+`internal/message`, `internal/transport/bitchat` and
+`internal/meshcarry`. The tree was otherwise untouched, so these are
+environmental, not regressions.
+
+| Scenario | Expected | Observed | Time to private | Time to public | False alarms |
+|---|---|---|---|---|---|
+| Crowd carry (simulator) | Blind relay; silence fails safe | Delivered hops=2; `--drop B/C` and `--ttl 1` all fail silent honestly | n/a (transport drill) | n/a | 0 |
+| QR courier | 304 chars | 304-char line + show-QR prompt | n/a | n/a | 0 |
+| Talk send/listen | Round-trip over drill relay | **Could not run** (no local relay; see above). Negative paths all behave honestly | n/a | n/a | 0 |
+
+Accidental-panic check: n/a. Unsafe contacts: n/a.
+Lessons: (1) Fix `talk send`'s "queued for retry" wording for the
+one-shot CLI, or persist the queue — today the queue dies with the
+process. (2) Fix `meshlink demo --drop` help wording ("discard
+everything" → "discard everything received"). (3) The project needs a
+checked-in minimal local drill relay (the test relay in
+`internal/transport/nostr/relay_test.go` is test-only) so talk/watcher
+live drills are reproducible without public relays.
+
+### Drill 4: tabletop against the current code — 2026-11-19 (SIMULATED)
+
+> **This record is simulated.** One operator walked each scenario
+> against the code at `c995b6b` and the passing unit tests below. No
+> volunteers, no phones, no radios. It shows what the code already
+> implements per step — and what still needs human volunteers.
+
+Participants (drill identities, all fictional): Activist: Amina Mfano;
+Guardians: Baraka Mfano, Chausiku Mfano, Dalila Mfano; Observer: Enzi
+Mfano (operator).
+Setup: code walk + in-process unit tests (`go test -race`, all pass):
+`TestGoingDark` (16 subtests), `TestStillPaused`, `TestStandDown`,
+`TestWatchLoopGoingDark`, `TestWatchLoopNostrDown`,
+`TestActivistAllClearAloneEndsNothing`, `TestAllClearByTwoGuardians`,
+`TestTwoOfThreeReleasesOnce`, `TestGuardianAllClearNeedsVerification`,
+`TestOneOfThreeDoesNothingPublic`, `TestDuressPath`.
+Consent: n/a — no volunteers; operator-only session.
+
+| Scenario | Expected | Observed (code walk) | Time to private | Time to public | False alarms |
+|---|---|---|---|---|---|
+| 1. Missed check-in | Private alarm, then one `DRILL:` note after 2 confirm | Engine half verified live in Drills 1–2. Confirm half is code-only: 1-of-3 publishes nothing, 2-of-3 releases once (`internal/confirm/tally.go`, `TestTwoOfThreeReleasesOnce`), shares bound to activist/threshold/guardian list (`internal/confirm/kit.go`) | live: 0s (Drills 1–2) | SIMULATED (no CLI path publishes the note) | 0 |
+| 2. Duress | Innocent screen; silent alarm; no unsafe contact | Screen: `DURESS` returns the identical success UI as `REAL` (`android/.../pin/PinStore.kt`, `CheckInResultActivity.kt`; `CheckInManager.kt` builds `DURESS_CHECK_IN` with identical UI). Alarm: engine raises top-priority `alarm` (`internal/schedule/schedule.go`, `Observe`), duress path tested (`TestDuressPath`). No-unsafe-contact is human-only — no code can enforce it | SIMULATED (no delivery path in the CLI; engine covered by unit tests) | n/a | 0 |
+| 3. Panic | Immediate alarm; gesture hard to fire by accident | Engine side exists (`NoticeAlarm` on `KindPanic`, `schedule.go`). Phone side is event-builder only: `PanicTrigger.buildEvent` (`android/.../panic/PanicTrigger.kt`) with the gesture, confirmation screen and transports explicitly still missing (issues #8, #9). Accidental-press check impossible until the gesture exists | SIMULATED | n/a | 0 |
+| 4. Shutdown | No alarm while offline; alarm ≤1 min after return if silent | Pause/resume verified live in Drill 1 (4a–4e). Going-dark pre-arm is code-only: `GoingDarkEvent` (`internal/message/goingdark.go`) → `goingDark` pauses at once (`schedule.go`), `Tick` ends the hold with the return window, check-in ends it early, panic/duress still alarm inside the hold — all covered by `TestGoingDark` (16 subtests, pass) and `TestWatchLoopGoingDark` (pass). Still-paused re-alert every 24h (`schedule.go`, `TestStillPaused`) never fires in a short drill | live for pause (Drill 1); SIMULATED for going-dark expiry | n/a | 0 |
+| 5. All-clear (×4) | Activist-only leaves alarm open; 2 verified guardians close it | Activist all-clear at Level 1+ → `activist-says-safe`, ends nothing (`schedule.go`, `Observe`); `StandDown` is guardians-only (`schedule.go`); guardian all-clears refuse without a voice/video `Verification` kept on-device (`internal/confirm/body.go`, `GuardianAllClearEvent`); races tested (`TestAllClearByTwoGuardians`, `TestGuardianAllClearNeedsVerification` — pass). The voice/video check itself is human | SIMULATED | n/a | 0 |
+| Crowd relay (phones/radios) | Blind carry over Bluetooth; QR courier in total blackout | Simulator verified live in Drill 3 (`internal/meshcarry`, `cmd/kengele-meshlink`). Real BLE is a plan/test stub only: `internal/transport/bitchat` "builds no mesh and speaks no BLE" (`carry.go`); Android mesh UI/service files exist (`android/.../mesh/`) but were not exercised here. QR courier verified live (304 chars, Drill 3). Dense-crowd TTL cap exists (`meshcarry/carry.go`) | SIMULATED for real radios | n/a | 0 |
+
+Accidental-panic check: **blocked** — no gesture exists yet
+(`PanicTrigger.kt` stub, issues #8, #9), so there is nothing to
+accidentally fire or to rehearse.
+Unsafe contacts: n/a (no volunteers; the rule is human-only).
+Lessons: (1) **A live Level 2 drill is not safe to run yet:**
+`confirm.Note` (`internal/confirm/note.go`) builds the public note with
+no drill-marking option, so a rehearsed release would publish an
+*unmarked* public note — drill rule 4 ("marked `DRILL:`") has no code
+support. Add a drill flag to note building (or a drill-only publisher)
+before any volunteer touches the confirm path live. (2) Screen
+innocence (duress PIN) needs a human glance test on real devices; code
+review of `PinStore.kt` is not enough. (3) The 15-minute airplane-mode
+run, the post-return grace check-in, the accidental-alarm count, the
+voice/video verification, and the crowd relay on real phones/radios all
+still need 5 volunteers, test phones and a local drill relay — Drills
+1–3 cleared the CLI/transport half so the volunteer session can focus
+on the human half. (4) Agree a spoken duress word before scenario 2
+(`docs/guardian-confirmation.md` threat list) and print the
+separate-channel list before scenario 1 (Drill 0 lesson 1, still open).
+
+## Addendum (2026-11-19): landed since Drills 1–4 ran
+
+Drills 1–4 ran against `c995b6b`. Since then, two "blocked" items cleared:
+
+- **Panic gesture exists now.** The five-press trigger, confirmation dialog
+  path and settings screen landed after the drill run; the accidental-press
+  check in lesson 3 is ready for volunteers (see the panic field-test steps
+  in the originating change).
+- **Phone BLE radio proven live.** The activist app's GATT layer was
+  exercised against a real phone: advertisements observed, a sealed panic
+  event carried phone→laptop over BLE and relayed byte-identical with
+  TTL 7→6, and the phone's own counter showed the relay. Mesh→guardian
+  intake is wired; the remaining radio work is crowd drills (3+ phones),
+  not code.
+
+Since the addendum: lesson 1 is closed — `DrillNote`/`DrillPublish`
+(`internal/confirm/note.go`) mark rehearsed releases with a `DRILL:`
+prefix and a drill tag, and drills must publish through them.
+
+Still open: the duress-screen glance test and the full 5-volunteer
+session.
