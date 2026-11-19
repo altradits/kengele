@@ -360,3 +360,17 @@ func TestCLIHelp(t *testing.T) {
 		t.Errorf("version: %v %q", err, out.String())
 	}
 }
+
+func TestQueuedLineIsHonest(t *testing.T) {
+	// A queued send reached no relay and this process exits without
+	// retrying, so the line must not promise a retry.
+	line := queuedLine(message.PublicKey(mustPriv(t, testPrivHex)), message.PublicKey(mustPriv(t, testPeerHex)), 0, 2)
+	for _, want := range []string{"not delivered", "does not retry", "haikutumwa", "haijaribu tena", "0 of 2"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("queued line lacks %q: %q", want, line)
+		}
+	}
+	if strings.Contains(line, "queued for retry") || strings.Contains(line, "imepangwa kutumwa tena") {
+		t.Errorf("queued line still promises a retry: %q", line)
+	}
+}

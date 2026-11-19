@@ -156,6 +156,13 @@ func loadKey(warn io.Writer, path string) (*btcec.PrivateKey, error) {
 
 // fingerprint is the short public name of a key: its first 8 hex characters.
 // Transcripts cite fingerprints so full keys stay out of logs.
+// queuedLine reports a send that reached no relay. Pure so tests pin the
+// honest wording: nothing about this demo retries after it exits.
+func queuedLine(from, to [32]byte, accepted, total int) string {
+	return fmt.Sprintf("sent from %s to %s: accepted by %d of %d relays, not delivered: this demo does not retry after it exits / imetumwa kutoka %s kwenda %s: relay %d kati ya %d zimeikubali, haikutumwa: demo hii haijaribu tena inapoisha",
+		fingerprint(from), fingerprint(to), accepted, total, fingerprint(from), fingerprint(to), accepted, total)
+}
+
 func fingerprint(pub [32]byte) string {
 	return hex.EncodeToString(pub[:4])
 }
@@ -271,9 +278,10 @@ func sendCmd(args []string, out, warn io.Writer) error {
 	}
 	from := message.PublicKey(key)
 	if res.Queued {
-		fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays, queued for retry / imetumwa kutoka %s kwenda %s: relay %d kati ya %d zimeikubali, imepangwa kutumwa tena\n",
-			fingerprint(from), fingerprint(to), res.Accepted, len(relays), fingerprint(from), fingerprint(to), res.Accepted, len(relays))
-		return nil
+		// The outbox is memory-only and this process exits here, so a
+		// queued message is never retried: say it was not delivered.
+		fmt.Fprintln(out, queuedLine(from, to, res.Accepted, len(relays)))
+		return errors.New("send failed: no relay accepted the message / ujumbe haujafika relay yoyote")
 	}
 	fmt.Fprintf(out, "sent from %s to %s: accepted by %d of %d relays / imetumwa kutoka %s kwenda %s: relay %d kati ya %d zimeikubali\n",
 		fingerprint(from), fingerprint(to), res.Accepted, len(relays), fingerprint(from), fingerprint(to), res.Accepted, len(relays))
