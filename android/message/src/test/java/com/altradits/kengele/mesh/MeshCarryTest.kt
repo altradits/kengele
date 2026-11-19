@@ -592,12 +592,12 @@ class MeshCarryTest {
     private fun meshSourceDir(): File {
         val candidates = listOf(
             File("src/main/java/com/altradits/kengele/mesh"),
-            File("app/src/main/java/com/altradits/kengele/mesh"),
-            File("../app/src/main/java/com/altradits/kengele/mesh"),
-            File("../../android/app/src/main/java/com/altradits/kengele/mesh"),
+            File("message/src/main/java/com/altradits/kengele/mesh"),
+            File("../message/src/main/java/com/altradits/kengele/mesh"),
+            File("../../android/message/src/main/java/com/altradits/kengele/mesh"),
         )
         return candidates.firstOrNull { it.isDirectory }
-            ?: throw AssertionError("mesh sources not found under android/app")
+            ?: throw AssertionError("mesh sources not found under android/message")
     }
 
     @Test
@@ -617,11 +617,12 @@ class MeshCarryTest {
 
     @Test
     fun carryPathIsMemoryOnlyAndNeverTouchesGps() {
-        // MeshService is excepted from the storage half: it only reads the
-        // watch window through the existing AppState (lifecycle, not carry
-        // state). The carry path itself — wire core, radio queues, duty
-        // cycle — keeps everything in memory.
+        // No exceptions in this home: the carry path — wire core, radio
+        // queues, duty cycle, permission map — keeps everything in memory.
+        // (The activist app's MeshService reads the watch window through
+        // AppState, but that lifecycle file lives in :app, not here.)
         val files = meshSourceDir().listFiles { f -> f.extension == "kt" }!!.sortedBy { it.name }
+        assertTrue(files.isNotEmpty())
         for (f in files) {
             val text = f.readText()
             val imports = text.lines().filter { it.trimStart().startsWith("import ") }
@@ -631,7 +632,6 @@ class MeshCarryTest {
                     text.contains("LocationManager") ||
                     text.contains("FusedLocation"),
             )
-            if (f.name == "MeshService.kt") continue
             assertFalse(
                 "${f.name} touches storage: carry state must stay in memory",
                 text.contains("SharedPreferences") ||

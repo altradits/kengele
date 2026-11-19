@@ -72,6 +72,16 @@
     <string name="nostr_sent_all">Zote %1$d zimefika kwenye relay.</string>
     <string name="nostr_sent_partial">%1$d kati ya %2$d zimefika; zilizobaki zitajaribu tena.</string>
 
+    <string name="mesh_links">Viungo hai: %1$d</string>
+    <string name="mesh_relayed">Datagramu zilizosambazwa: %1$d</string>
+    <string name="mesh_off">Mtandao umezimwa.</string>
+    <string name="mesh_unavailable">Bluetooth LE haipatikani kwenye simu hii.</string>
+    <string name="mesh_from_mesh">Kupitia mtandao. %1$s</string>
+    <string name="mesh_perm_title">Ruhusa ya Bluetooth</string>
+    <string name="mesh_perm_rationale">Kengele hutumia Bluetooth kupokea tahadhari zilizofungwa kutoka simu zilizo karibu. Haitumii GPS kamwe.</string>
+    <string name="mesh_perm_allow">Endelea</string>
+    <string name="mesh_perm_denied">Ruhusa ya Bluetooth imekataliwa. Mtandao umezima.</string>
+
     <string name="release_title">Tangaza tahadhari</string>
     <string name="release_found_safe_title">Tangaza ujumbe wa yuko salama</string>
     <string name="release_explainer">Walinzi wamethibitisha. Hii ndiyo tahadhari ambayo mwanaharakati aliandika, imefunguliwa kwa sehemu zao za siri. Iangalie, kisha itangaze mara moja.</string>

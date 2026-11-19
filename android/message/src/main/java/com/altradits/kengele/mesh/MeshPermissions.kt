@@ -3,7 +3,6 @@ package com.altradits.kengele.mesh
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContextCompat
 
 /**
  * Bluetooth runtime permissions for the mesh carry layer (API 31+):
@@ -33,8 +32,10 @@ object MeshPermissions {
 
     /** Runtime permissions from [requiredPermissions] the user has not granted yet. */
     fun missing(context: Context, sdkInt: Int = Build.VERSION.SDK_INT): List<String> =
+        // Framework call, not ContextCompat: minSdk 26 is past the compat
+        // shim's API 23 floor, so both read the same grant.
         requiredPermissions(sdkInt).filter {
-            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+            context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
 
     /** Whether every runtime permission the OS demands is already granted. */

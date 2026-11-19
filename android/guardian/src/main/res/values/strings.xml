@@ -72,6 +72,16 @@
     <string name="nostr_sent_all">All %1$d reached the relays.</string>
     <string name="nostr_sent_partial">%1$d of %2$d reached the relays; the rest will retry.</string>
 
+    <string name="mesh_links">Live links: %1$d</string>
+    <string name="mesh_relayed">Datagrams relayed: %1$d</string>
+    <string name="mesh_off">Mesh is off.</string>
+    <string name="mesh_unavailable">Bluetooth LE is not available on this phone.</string>
+    <string name="mesh_from_mesh">Over mesh. %1$s</string>
+    <string name="mesh_perm_title">Bluetooth permission</string>
+    <string name="mesh_perm_rationale">Kengele uses Bluetooth to receive sealed alarms from nearby phones. It never uses GPS.</string>
+    <string name="mesh_perm_allow">Continue</string>
+    <string name="mesh_perm_denied">Bluetooth permission denied. Mesh stays off.</string>
+
     <string name="release_title">Publish alert</string>
     <string name="release_found_safe_title">Publish found-safe update</string>
     <string name="release_explainer">The guardians confirmed. This is the alert the activist wrote, opened with their shares. Check it, then publish it once.</string>
